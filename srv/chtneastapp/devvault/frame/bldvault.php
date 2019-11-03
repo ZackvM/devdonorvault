@@ -21,7 +21,7 @@ class pagebuilder {
   public $modalrs = "";
   public $modalrdialogs = "";
   //PAGE NAME MUST BE REGISTERED IN THIS ARRAY - COULD DO A METHOD SEARCH - BUT I LIKE THE CONTROL OF NOT ALLOWING A PAGE THAT IS NOT READY FOR DISPL
-  private $registeredPages = array('login');  
+  private $registeredPages = array('login','root','pendingpathologyreportlisting','donorlookup', 'consentwatch');  
   //THE SECURITY EXCPETIONS ARE THOSE PAGES THAT DON'T REQUIRE USER RIGHTS TO ACCESS
   private $securityExceptions = array('login');
 
@@ -33,9 +33,10 @@ function __construct() {
      if ($_SESSION['loggedin'] !== "true" && $args[0] !== "login") {
          $this->statusCode = 403;
      } else {           
-       $usrmetrics = $args[2];  //$usrmetric->username - Class from the index file defining the user      
+       //$usrmetrics = $args[2];  //$usrmetric->username - Class from the index file defining the user     
+        
        if (in_array($args[0], $this->registeredPages)) {
-         $pageElements = self::getPageElements($args[0],$args[1], $usrmetrics);	  
+         $pageElements = self::getPageElements( $args[0], $args[1], $args[2]);	  
          $this->statusCode = $pageElements['statuscode'];
          $this->pagetitle = $pageElements['tabtitle'];
          $this->pagetitleicon = $pageElements['tabicon'];
@@ -54,7 +55,7 @@ function __construct() {
    }   
 }
 
-function getPageElements($whichpage, $rqststr, $mobileInd, $usrmetrics) { 
+function getPageElements($whichpage, $rqststr, $usrmetrics) { 
   session_start();  
   $ss = new stylesheets(); 
   $js = new javascriptr();
@@ -77,16 +78,19 @@ function getPageElements($whichpage, $rqststr, $mobileInd, $usrmetrics) {
   }
   $elArr['scripts']     .=   (method_exists($js,$whichpage) ? $js->$whichpage($rqststr) : "");
 
-  //CONTROL BARS GET BUILT HERE --------------------------------------------------------------   
-  //$elArr['controlbars']  =   (method_exists($oe,'menubuilder') ? $oe->menubuilder($whichpage, $usrmetrics ) : "");     
-  $elArr['modalscreen']  =   (method_exists($oe,'modalbackbuilder') ? $oe->modalbackbuilder($whichpage) : "");
-
+  ////CONTROL BARS GET BUILT HERE --------------------------------------------------------------   
+  if ($whichpage !== "login") {  
+    $elArr['controlbars']  =   (method_exists($oe,'controlbars') ? $oe->controlbars($whichpage, $usrmetrics ) : "");     
+    $elArr['modalscreen']  =   (method_exists($oe,'modalbackbuilder') ? $oe->modalbackbuilder($whichpage) : "");
+  }
   //PAGE CONTENT ELEMENTS  ------------------------------------
   //MAKE SURE USER IS ALLOWED ACCESS TO THE PAGE 
   $allowPage = 0;
   if (in_array($whichpage, $this->securityExceptions)) {
     $allowPage = 1;
-  } else {      
+  } else {     
+    $allowPage = 1;
+    //TODO:  THIS IS NOT ALLOWED ^^^^ CORRECT IT - THIS IS FOR TESTING
 //      foreach ($usrmetrics->allowedmodules as $modval) { 
 //          $allowPage =  ($whichpage === str_replace("-","",$modval[2])) ? 1 : $allowPage; 
 //          foreach ($modval[3] as $allowPageLst) {
@@ -100,7 +104,7 @@ function getPageElements($whichpage, $rqststr, $mobileInd, $usrmetrics) {
  } else { 
    $elArr['bodycontent'] =  "<h1>USER NOT ALLOWED ACCESS TO THIS MODULE PAGE ({$whichpage})";
  }
-//  //END PAGE ELEMENTS ---------------------------
+  //END PAGE ELEMENTS ---------------------------
 
 
 //RETURN STATUS - GOOD ---------------------------------------------------------------

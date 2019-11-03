@@ -12,5 +12,5 @@ session_start();
 session_regenerate_id(true);
 session_unset();
 session_destroy();
-header("location: https://scienceserver.chtneast.org");
+header("location: https://devvault.chtneast.org");
 

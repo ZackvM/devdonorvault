@@ -64,17 +64,32 @@ switch ( $method ) {
    case 'GET':
 
      require(applicationTree . "/bldvault.php");  
-     if (!$_SESSION['loggedin'] || $_SESSION['loggedin'] !== "true")  { 
+     $rqst = explode("/",$originalRequest);
+     if (!$_SESSION['loggedin'] || $_SESSION['loggedin'] !== "true" || trim($_SESSION['pxiguid']) === "" )  { 
          $obj = "login";
-         $rqst = explode("/",$originalRequest);
          if ( trim($rqst[1]) === "" ) { 
              echo "ERROR:  MALFORMED INDENTIFICATION";
              exit(); 
          }
      } else { 
-       //CHECK USER HERE DON'T GO ON IF USER IS NOT ALLOWED
+         //CHECK USER HERE DON'T GO ON IF USER IS NOT ALLOWED
+         require(applicationTree . "/bldvaultuser.php");
+         $vuser = new bldssvaultuser();  
+                 
+         if ( (int)$vuser->statuscode === 200 ) {
+           if ( trim($rqst[1]) === "" ) {       
+              $obj = "root";
+           } else { 
+             $obj = str_replace("-","",$rqst[1]);
+           }
+         } else {
+           session_regenerate_id(true);
+           session_unset();
+           session_destroy();
+           $obj = "login";
+         }
      }
-     $pageBld = new pagebuilder($obj, $rqst, '');
+     $pageBld = new pagebuilder($obj, $rqst, $vuser);
      if ((int)$pageBld->statusCode <> 200) { 
        //PAGE NOT FOUND            
        http_response_code($pageBld->statusCode);     
@@ -84,7 +99,7 @@ switch ( $method ) {
 <head>
 <title>PAGE NOT FOUND</title>
 </head>
-<body><h1>Requested Page ({$obj}) @ CHTN Eastern Division - Not Found!</h1>
+<body><h1>Requested Page ({$obj}) @ CHTN Eastern Division - Not Found! // {$pageBld->statusCode}</h1>
 </body></html>
 RTNTHIS;
 //PAGE NOT FOUND END
@@ -96,7 +111,7 @@ RTNTHIS;
       $pgTitle = (trim($pageBld->pagetitle) !== "") ? "<title>" . $pageBld->pagetitle . "</title>" : "<title>CHTN Eastern</title>";
       $pgStyle = (trim($pageBld->stylr) !== "") ? "<style>" . $pageBld->stylr . "\n</style>" :  "";
       $pgScriptr = (trim($pageBld->scriptrs) !== "") ? "<script lang=javascript>" . $pageBld->scriptrs . "</script>" : "";
-      //$pgControls = $pageBld->pagecontrols;
+      $pgControls = (trim($pageBld->pagecontrols) !== "" ) ? $pageBld->pagecontrols : "";
       $pgBody = $pageBld->bodycontent;
       //$pgMenu = $pageBld->menucontent;
       $pgModal = $pageBld->modalrs;
@@ -125,11 +140,35 @@ RTNTHIS;
   echo $rt;
    break; 
    case 'POST':
+     $authuser = $_SERVER['PHP_AUTH_USER']; 
+     $authpw = $_SERVER['PHP_AUTH_PW']; 
 
+     $responseCode = 500;
 
+     if ((int)checkPostingUser($authuser, $authpw) === 200) { 
+     //  //CONTINUE WITH POST REQUEST
+       require(genAppFiles . "/dataservices/posters/dvscienceserverposter.php"); 
+       $postedData = file_get_contents('php://input');
+       $passedPayLoad = "";
+       if (trim($postedData) !== "") { 
+         $passedPayLoad = trim($postedData);
+       } 
+       $doer = new dataposters($originalRequest, $passedPayLoad);
+       $responseCode = $doer->responseCode; 
+       $data = $doer->rtnData;                
+       //$data = json_encode(array('z1' => $testerString));
+     } else { 
+       $responseCode = 401;
+       $data = "USER NOT FOUND";
+     } 
+     header('Content-type: application/json; charset=utf8');
+     header('Access-Control-Allow-Origin: *'); 
+     header('Access-Control-Allow-Header: Origin, X-Requested-With, Content-Type, Accept');
+     header('Access-Control-Max-Age: 3628800'); 
+     header('Access-Control-Allow-Methods: GET, POST');
+     http_response_code($responseCode);
+     echo $data;
    break;
    default: 
       echo "ONLY GET/POST METHODs ARE ALLOWED AT THIS END POINT.  STOP HACKING!"; 
 }
-
-

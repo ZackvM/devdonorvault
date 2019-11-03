@@ -49,7 +49,7 @@ ehthumbs.db
 Thumbs.db
 
 nbproject/
-srv/chtneastapp/nwtransient/extlibs
-srv/chtneastapp/nwtransient/tmp
-srv/chtneastapp/nwtransient/developmentnotes
-srv/chtneastapp/nwtransient/publicobj
+srv/chtneastapp/devvault/extlibs
+srv/chtneastapp/devvault/tmp
+srv/chtneastapp/devvault/developmentnotes
+srv/chtneastapp/devvault/publicobj
