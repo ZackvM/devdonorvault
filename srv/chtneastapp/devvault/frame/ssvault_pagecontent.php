@@ -34,7 +34,9 @@ STANDARDHEAD;
 
     $rt = <<<PGCONTENT
 
-PENDING PATHOLOGY REPORT LIST 
+<div id=dataDsp>
+    Please wait as we retrieve this information ...
+</div>
 
 PGCONTENT;
     return $rt;

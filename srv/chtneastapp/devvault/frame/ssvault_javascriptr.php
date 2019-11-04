@@ -16,6 +16,9 @@ class javascriptr {
   function globalscripts( $rqststr ) { 
 
     $tt = treeTop;
+    $dtaTree = dataTree . "/data-doers/";
+    $regUsr = session_id();      
+    $regCode = dvRegisterServerIdent ( $regUsr ); 
     $rtnThis = <<<JAVASCR
 
 window.addEventListener("unload", logData, false);
@@ -26,6 +29,7 @@ function logData() {
 
 var byId = function( id ) { return document.getElementById( id ); };
 var treeTop = "{$tt}";
+var dataPath = "{$dtaTree}";
 var mousex;
 var mousey;
 
@@ -98,6 +102,43 @@ JAVASCR;
     return $rtnThis;
   }
 
+  function pendingpathologyreportlisting ($rqststr) { 
+    session_start(); 
+    $tt = treeTop;
+    $ott = ownerTree;
+    $si = serverIdent;
+    $sp = serverpw;
+    
+    $rtnThis = <<<JAVASCR
+
+document.addEventListener('DOMContentLoaded', function() {             
+  universalAJAX("POST", "retrievePendingPRListing", "", dspRetrievedPRs, 1);              
+}, false);            
+            
+function dspRetrievedPRs ( rtnData ) { 
+  var r = JSON.parse(rtnData['responseText']);
+  if ( parseInt(r['RESPONSECODE']) !== 200 ) { 
+    var msg = r['MESSAGE'];
+    var dspMsg = ""; 
+   msg.forEach(function(element) { 
+      dspMsg += "\\n - "+element; 
+    });    
+    if ( byId('dataDsp') ) {         
+      byId('dataDsp').innerHTML = "";        
+    }
+    alert(dspMsg);
+  } else { 
+    if ( byId('dataDsp') ) { 
+      byId('dataDsp').innerHTML = r['DATA'];
+    }
+  }                        
+}
+            
+JAVASCR;
+    return $rtnThis;
+      
+  }
+  
   function login($rqstrstr) { 
     session_start(); 
     $tt = treeTop;

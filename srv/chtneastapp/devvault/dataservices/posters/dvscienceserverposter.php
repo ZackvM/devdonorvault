@@ -35,6 +35,59 @@ class dataposters {
 
 class datadoers { 
     
+    function retrievependingprlisting( $request, $passedData ) { 
+        
+      $responseCode = 503; 
+      $rsltdta = callrestapi("POST", dataTreeSS . "/data-doers/vault-retrieve-pending-prs",serverIdent, serverpw, $passedData);          
+      $dta = json_decode($rsltdta, true);
+      
+      if ((int)$dta['RESPONSECODE'] === 200 ) { 
+        
+          $dspTbl = <<<DSPTHIS
+<div id=PNDPRTitle>Biosamples in 'Pending Pathology Report' Status</div>
+<div id=resultCnt>Items Found: {$dta['ITEMSFOUND']}</div>    
+<div id=dspWorkBenchTbl>
+DSPTHIS;
+
+          $dspTbl .= "<table border=1>";
+          $procdate = "";
+          foreach ( $dta['DATA'] as $ky => $v ) { 
+              //"DATA":["pxiid":"ZCR-011985","associd":"2086fc7a-2a84-4fa6-add1-42973ec73b4b"},{"pBioSample":29602.01,"readlabel":"29602A2","proctype":"Surgery","qmsprocstatus":"QMS Complete","procureinstitution":"Hospital of The University of Pennsylvania","procurementdate":"8200-07-25","proceduredate":"07\/25\/2003","pxi":"WHITE \/ FEMALE \/ 58 YEARS","dx":"NORMAL :: LUNG ::","pxiid":"ZCR-020726","associd":"","procurementdatedsp":"07-8200" 
+              
+              if ( $procdate !== $v['procurementdatedsp']) { 
+                  $dspTbl .= "<tr><td colspan=20>{$v['procurementdatedsp']}</td></tr>";
+                  $procdate = $v['procurementdatedsp'];
+              }
+              
+              
+              
+              $dspTbl .= "<tr data-pbiosample=\"{$v['pBioSample']}\">"
+                               . "<td>{$v['readlabel']}</td>"
+                               . "<td>{$v['proctype']}</td>"
+                               . "<td>{$v['procureinstitution']}</td>"
+                               . "<td>{$v['proceduredate']}</td>"
+                               . "<td>{$v['qmsprocstatus']}</td>"
+                               . "<td>{$v['pxi']}</td>"                               
+                               . "<td>{$v['dx']}</td>"
+
+
+                               . "</tr>";
+              
+          }
+          $dspTbl .= "</table></div>";
+          
+
+          
+        $dta = $dspTbl;
+        $responseCode = 200;          
+      } else { 
+        $msgArr[] = "UNSPECIFIED ERROR:  SEE CHTNED INFORMATICS";
+      }      
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;                      
+    }
     
 }
 

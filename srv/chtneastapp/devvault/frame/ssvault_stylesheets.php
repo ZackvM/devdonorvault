@@ -38,10 +38,8 @@ class stylesheets {
 html { height: 100%; width: 100%; font-family: Roboto; font-size: 1vh; color: rgba({$this->color_black},1); }
 body { margin: 0; padding-left: 4vw;  } 
 
-
 #leftSideBar { position: fixed; z-index: 30; top: .5vh; left: 0; }
  
-
 .buttonContainer { position: relative;  }
 
 .buttonContainer #logoHolder { width: 3vw; text-align: center; border: 1px solid #000; margin-left: .2vw; margin-top: .2vh; padding: .5vh 0 .4vh 0; background: rgba({$this->color_dblue},1);  } 
@@ -58,11 +56,11 @@ body { margin: 0; padding-left: 4vw;  }
 .popupToolTip:after { border-color: rgba(136, 183, 213, 0); border-right-color: #88b7d5; border-width: 1vh; margin-top: -1vh; } 
 .popupToolTip:before { border-color: rgba(194, 225, 245, 0); border-right-color: #c2e1f5; border-width: 1.2vh; margin-top: -1.2vh; }  
 
-
-
 .buttonContainer:hover .popupToolTip { display: block; } 
 .buttonContainer:hover { cursor: pointer; } 
 
+
+#standardModalBacker { position: fixed; top: 0; left: 0;  z-index: 100; background: rgba({$this->color_zackgrey},.7); height: 100vh; width: 100vw; display: none; }
 STYLESHEET;
     return $rtnThis;
   }
