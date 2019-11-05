@@ -49,8 +49,38 @@ PGCONTENT;
 
     $rt = <<<PGCONTENT
 
-Donor Lookup Page 
+<div id=pgHolder>
+  
+   <div id=instructionBlock>These are instructions for how to use this screen</div>         
+            
+   <div class=elementHolder>
+       <div class=fldLabel>First Name</div>
+       <div class=fldHolder><input type=text id=fldFName></div>
+   </div>
 
+   <div class=elementHolder>
+       <div class=fldLabel>Last Name</div>
+       <div class=fldHolder><input type=text id=fldLName></div>
+   </div>   
+
+   <div class=elementHolder>
+       <div class=fldLabel>MRN</div>
+       <div class=fldHolder><input type=text id=fldMRN></div>
+   </div>            
+            
+   <div class=elementHolder>
+       <div class=fldLabel>O.R. Date</div>
+       <div class=fldHolder><input type=text id=fldORDte></div>
+   </div>            
+            
+   <div class=elementHolder>
+       <div class=fldLabel>CHTN #</div>
+       <div class=fldHolder><input type=text id=fldCHTNNbr></div>
+   </div>
+   
+    <div><button onclick="sendSrchRqst();">Search</button></div>            
+            
+</div>            
 PGCONTENT;
     return $rt;
   }

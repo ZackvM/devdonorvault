@@ -55,7 +55,7 @@ DSPTHIS;
               //"DATA":["pxiid":"ZCR-011985","associd":"2086fc7a-2a84-4fa6-add1-42973ec73b4b"},{"pBioSample":29602.01,"readlabel":"29602A2","proctype":"Surgery","qmsprocstatus":"QMS Complete","procureinstitution":"Hospital of The University of Pennsylvania","procurementdate":"8200-07-25","proceduredate":"07\/25\/2003","pxi":"WHITE \/ FEMALE \/ 58 YEARS","dx":"NORMAL :: LUNG ::","pxiid":"ZCR-020726","associd":"","procurementdatedsp":"07-8200" 
               
               if ( $procdate !== $v['procurementdatedsp']) { 
-                  $dspTbl .= "<tr><td colspan=20>{$v['procurementdatedsp']}</td></tr>";
+                  $dspTbl .= "<tr><td colspan=20>Procurement in {$v['procurementdatedsp']}</td></tr>";
                   $procdate = $v['procurementdatedsp'];
               }
               
@@ -69,7 +69,7 @@ DSPTHIS;
                                . "<td>{$v['qmsprocstatus']}</td>"
                                . "<td>{$v['pxi']}</td>"                               
                                . "<td>{$v['dx']}</td>"
-
+                               . "<td>{$v['pxiid']}</td>"
 
                                . "</tr>";
               

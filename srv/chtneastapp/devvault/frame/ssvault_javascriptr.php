@@ -240,6 +240,21 @@ JAVASCR;
     return $rtnThis;
   } 
 
-
+  function donorlookup ( $rqststr ) { 
+    session_start(); 
+    $tt = treeTop;
+    $ott = ownerTree;
+    $si = serverIdent;
+    $sp = serverpw;
+    
+    $rtnThis = <<<JAVASCR
+    
+    function sendSrchRqst() { 
+        alert('CLICKED');                    
+     }            
+            
+JAVASCR;
+    return $rtnThis;
+  }
 
 }

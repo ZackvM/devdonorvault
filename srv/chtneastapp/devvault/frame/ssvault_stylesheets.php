@@ -65,7 +65,19 @@ STYLESHEET;
     return $rtnThis;
   }
 
+  function donorlookup() { 
+      
+    $rtnThis = <<<stylesheets
 
+#pgHolder { display: grid; grid-template-columns: repeat(7, 1fr); padding: 1vh 0 0 0;   }             
+#instructionBlock { grid-column: 1 / 8; grid-row: 1; }    
+            
+            
+stylesheets;
+    return $rtnThis; 
+  }
+  
+  
   function root() {
     $at = genAppFiles; 
     $bgPic = base64file("{$at}/publicobj/graphics/bg.png","background","bgurl",true);  
