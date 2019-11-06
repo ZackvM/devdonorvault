@@ -53,3 +53,4 @@ srv/chtneastapp/devvault/extlibs
 srv/chtneastapp/devvault/tmp
 srv/chtneastapp/devvault/developmentnotes
 srv/chtneastapp/devvault/publicobj
+var/www/devvault.chtneast.org/public_html/graphics
