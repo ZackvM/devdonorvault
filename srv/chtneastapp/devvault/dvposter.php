@@ -12,14 +12,14 @@ class dataposters {
     if (trim($args[0]) === "") { 
     } else { 
         $request = explode("/",  str_replace("-","", strtolower($args[0]))    ); 
-        $this->rtnData = $request[3];
-      if (trim($request[3]) === "") { 
+        $this->rtnData = $request[1];
+      if (trim($request[2]) === "") { 
         $this->responseCode = 404; 
         $this->rtnData = json_encode(array("MESSAGE" => "DATA NAME MISSING " . json_encode($request),"ITEMSFOUND" => 0, "DATA" => array()    ));
       } else { 
-        $dp = new $request[2](); 
-        if (method_exists($dp, $request[3])) { 
-          $funcName = trim($request[3]); 
+        $dp = new $request[1](); 
+        if (method_exists($dp, $request[2])) { 
+          $funcName = trim($request[2]); 
           $dataReturned = $dp->$funcName($args[0], $args[1]); 
           $this->responseCode = $dataReturned['statusCode']; 
           $this->rtnData = json_encode($dataReturned['data']);
@@ -106,10 +106,13 @@ class systemposts {
         //GOOD - SESSION CREATE LOGGEDON - CAPTURE SYSTEM ACTIVITY - REDIRECT IN JAVASCRIPT WITH STATUSCODE = 200
         session_regenerate_id(true);
         $_SESSION['loggedin'] = 'true';
-        $_SESSION['pxiguid'] = $rslt['DATA'];
+        $_SESSION['loggedid'] = $rslt['DATA'];
         $responseCode = 200;  
       } else {
-        $msgArr[] = $rsltdta;
+        //{"RESPONSECODE":503,"MESSAGE":["USER NOT FOUND OR NOT ALLOWED ACCESS"],"ITEMSFOUND":0,"DATA":[]}  
+        foreach ( $rslt['MESSAGE'] as $mky => $mvl ) {    
+            $msgArr[] = $mvl;
+        }
       }
       $msg = $msgArr;
       $rows['statusCode'] = $responseCode; 
