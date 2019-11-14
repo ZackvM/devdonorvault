@@ -4,17 +4,6 @@
  * DB STUFF 
  * grant delete on ORSCHED.dv_ss_srvIdents to 'usract'@'%'
  * 
- * CREATE TABLE `srchrequests` (
-  `idsrchrequests` int(11) NOT NULL AUTO_INCREMENT,
-  `srchid` varchar(500) DEFAULT NULL,
-  `reqby` longtext,
-  `srchrequests` longtext,
-  `onwhen` datetime DEFAULT NULL,
-  PRIMARY KEY (`idsrchrequests`),
-  UNIQUE KEY `srchid_UNIQUE` (`srchid`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-*
-*
  */
 
 //ini_set('display_errors',1);
@@ -272,33 +261,29 @@ class datadoers {
 
     function donorlookup ( $request, $passedData ) { 
 
+      $usrid = session_id();  
       $responseCode = 503;  
-      $vuser = new vaultuser();
-      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
-      if ( (int)$vuser->responsecode === 200 ) { 
-        require( serverkeys . '/sspdo.zck');
-        $pdta = json_decode( $passedData, true); 
-        foreach ( $pdta as $k => $v ) {
-          $locArr[cryptservice( $k, 'd')] = chtndecrypt($v);  
-        }
-        //{"fldFName":"z","fldLName":"z","fldMRN":"","fldORDte":"","fldCHTNNbr":""}
-
-        ( !array_key_exists('fldFName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldFName' DOES NOT EXIST.")) : ""; 
-        ( !array_key_exists('fldLName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldLName' DOES NOT EXIST.")) : ""; 
-        ( !array_key_exists('fldMRN', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldMRN' DOES NOT EXIST.")) : ""; 
-        ( !array_key_exists('fldORDte', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldORDte' DOES NOT EXIST.")) : ""; 
-        ( !array_key_exists('fldCHTNNbr', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldCHTNNbr' DOES NOT EXIST.")) : "";        
-
-        $srchid = generateRandomString(15);
-        $srchRqSQL = "insert into ORSCHED.srchrequests (srchid, onwhen, reqby, srchrequests ) values(:srchid, now(), :reqby, :srchrequests )";
-        $srchRqRS = $conn->prepare($srchRqSQL); 
-        $srchRqRS->execute(array(':srchid' => $srchid, ':reqby' => json_encode($vuser), ':srchrequests' => json_encode($locArr) ));
-        $dta = cryptservice($srchid,'e');
-        $responseCode = 200;
-      } else { 
-        $responseCode = 501;  
-        $msgArr[] = "USER NOT ALLOWED FUNCTION";
+      $pdta = json_decode( $passedData, true); 
+      foreach ( $pdta as $k => $v ) {
+        $locArr[cryptservice( $k, 'd')] = chtndecrypt($v);  
       }
+
+      //{\\\"fldFName\\\":\\\"\\\",\\\"fldLName\\\":\\\"\\\",\\\"fldMRN\\\":\\\"\\\",\\\"fldORDte\\\":\\\"09\\\\\\/10\\\\\\/2019\\\",\\\"fldCHTNNbr\\\":\\\"\\\"}
+      ( !array_key_exists('fldFName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldFName' DOES NOT EXIST.")) : ""; 
+      ( !array_key_exists('fldLName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldLName' DOES NOT EXIST.")) : ""; 
+      ( !array_key_exists('fldMRN', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldMRN' DOES NOT EXIST.")) : ""; 
+      ( !array_key_exists('fldORDte', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldORDte' DOES NOT EXIST.")) : ""; 
+      ( !array_key_exists('fldCHTNNbr', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldCHTNNbr' DOES NOT EXIST.")) : "";
+
+      $vuser = new vaultuser();
+      $msgArr[] = json_encode($vuser);
+       
+
+
+
+      //$msgArr[] = json_encode($locArr);
+
+
       $msg = $msgArr;
       $rows['statusCode'] = $responseCode; 
       $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
@@ -322,7 +307,8 @@ DSPTHIS;
 
           $dspTbl .= "<table border=0 id=masterPRPTbl>";
 	  $procdate = "";
-	  $pxiSQL = "select distinct concat(ifnull(patLast,''),', ', ifnull(patfirst,'')) as pxiname, ifnull(mrn,'') as mrn, concat(ifnull(age,'-'),'/', ifnull(race,'-'),'/', ifnull(sex,'-')) as ars from ORSCHED.ut_zck_ORSchDetail where ORSchdtid = :pxiid";
+
+	  $pxiSQL = "select distinct concat(ifnull(patLast,''),', ', ifnull(patfirst,'')) as pxiname, ifnull(mrn,'') as mrn from ORSCHED.ut_zck_ORSchDetail where ORSchdtid = :pxiid";
           $pxiRS = $conn->prepare($pxiSQL);
           $rowcnt = 0; 
           foreach ( $dta['DATA'] as $ky => $v ) { 
@@ -339,7 +325,7 @@ DSPTHIS;
 
             if ( $procdate !== $v['procurementdatedsp']) { 
               $dspTbl .= "<tr><td class=procMnth colspan=10>{$v['procurementdatedsp']}</td></tr>";
-              $dspTbl .= "<tr><th>CHTN #</th><th>QMS<br>Status</th><th>Procedure</th><th>Institution</th><th>Procedure<br>Date</th><th>Diagnosis<br>Designation</th><th>Donor<br>Name</th><th>Donor<br>MRN</th><th>ScienceServer<br>ARS</th></tr>";
+              $dspTbl .= "<tr><th>CHTN #</th><th>QMS<br>Status</th><th>Procedure</th><th>Institution</th><th>Procedure<br>Date</th><th>Diagnosis<br>Designation</th><th>Donor<br>Name</th><th>Donor<br>MRN</th></tr>";
               $procdate = $v['procurementdatedsp'];
             }
                
@@ -352,9 +338,7 @@ DSPTHIS;
                      . "<td>{$v['dx']}</td>"
                      . "<td>{$pxiname}</td>"
                      . "<td>{$pximrn}</td>"
-                     . "<td>{$v['ars']}</td>"
                      . "</tr>";
-                     //. "<td>{$v['pxiid']}</td>"
             $rowcnt++;
  
           }
@@ -561,7 +545,7 @@ class defaultpageelements {
 <div id=leftSideBar>
   <div class=buttonContainer onclick="navigateSite('');"><div id=logoHolder>{$chtnlogo}</div><div class=popupToolTip>Back to Root Screen</div></div>
   <div class=buttonContainer onclick="navigateSite('donor-lookup');"><div class=controlBarButton><i class="material-icons">account_circle</i></div><div class=popupToolTip>Donor Lookup</div></div>
-  <div class=buttonContainer onclick="navigateSite('consent-watch');"><div class=controlBarButton><i class="material-icons">watch_later</i></div><div class=popupToolTip>Informed Consent Upload</div></div>
+  <div class=buttonContainer onclick="navigateSite('consent-watch');"><div class=controlBarButton><i class="material-icons">watch_later</i></div><div class=popupToolTip>Specify Consent Watch</div></div>
   <div class=buttonContainer onclick="navigateSite('pending-pathology-report-listing');"><div class=controlBarButton><i class="material-icons">format_list_bulleted</i></div><div class=popupToolTip>Pending PR List</div></div>
   <div class="buttonContainer" onclick="window.location.href = '{$tt}/lgdestroy.php';"><div class="controlBarButtonExit"><i class="material-icons">exit_to_app</i></div><div class=popupToolTip>Log-Out</div></div>
 <div id="countdown"></div>
@@ -649,9 +633,6 @@ function universalAJAX(methd, url, passedDataJSON, callbackfunc, dspBacker) {
 document.addEventListener('DOMContentLoaded', function() {
 
 
-document.addEventListener('keypress', function(event) {
-  timeleft = 600;
-}, false);
 
 }, false);
 
@@ -858,11 +839,8 @@ JAVASCR;
 
       bodyLoad();
 
-      if ( byId('fldFName') ) { 
-        byId('fldFName').focus();
-      }
-
     }, false);
+
 
     function sendSrchRqst() {
       var pdta = new Object();  
@@ -885,20 +863,17 @@ JAVASCR;
         msg.forEach(function(element) {
           dspMsg += "\\n - "+element;
         });
+        if ( byId('dataDsp') ) {
+          byId('dataDsp').innerHTML = "";
+        }
         alert(dspMsg);
       } else {
-        navigateSite('donor-lookup/'+r['DATA']); 
+        if ( byId('dataDsp') ) {
+          byId('dataDsp').innerHTML = r['DATA'];
+        }
       }
     }
 
-    function rowselector ( whichrow ) { 
-
-      if ( byId( whichrow ).dataset.selected == 'true'  ) {
-        byId( whichrow ).dataset.selected = "false";
-      } else { 
-        byId( whichrow ).dataset.selected = "true";
-      }
-    }
 JAVASCR;
     return $rtnThis;
   }
@@ -949,265 +924,149 @@ PGCONTENT;
   }
 
   function donorlookup ( $rqst, $usr ) {
-   
-    $r = explode('/', $_SERVER['REQUEST_URI']);
-    $valFN = "";
-    $valLN = "";
-    $valMR = "";
-    $valOR = "";
-    $valCH = "";
-    if ( trim($r[2]) !== "" ) {
-      require( serverkeys . '/sspdo.zck');
-      $sql = "SELECT reqby, srchrequests FROM ORSCHED.srchrequests where srchid = :srchid";
-      $rs = $conn->prepare($sql); 
-      $rs->execute(array(':srchid' => cryptservice($r[2],'d') ));
-      if ( $rs->rowCount() < 1 ) { 
-        $rdsp = "<div id=datadspdiv>FATAL ERROR:  NO SEARCH ID FOUND IN DATABASE.</div>";
-      } else {
-        //{"responsecode":200,"userguid":"7869c5ad-be9f-4a29-9091-d0acbe20bdeb","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""} == {"reqby":"{\"responsecode\":200,\"userguid\":\"7869c5ad-be9f-4a29-9091-d0acbe20bdeb\",\"userid\":\"zacheryv@mail.med.upenn.edu\",\"friendlyname\":\"Zack\",\"oaccount\":\"proczack\",\"accesslevel\":\"ADMINISTRATOR\",\"accessnbr\":43,\"holder\":\"\"}","srchrequests":"{\"fldFName\":\"zach\",\"fldLName\":\"von \",\"fldMRN\":\"\",\"fldORDte\":\"\",\"fldCHTNNbr\":\"\"}"} 
-        $s = $rs->fetch(PDO::FETCH_ASSOC);
-        $rqstr = json_decode($s['reqby'], true);
-        $rq = json_decode($s['srchrequests'], true);
- 
-        //DATA CHECKS HERE
-        $errorInd = 0;
-        ( $usr->userguid  !== $rqstr['userguid'] ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  REQUESTING USER DOES NOT MATCH SESSION LOGGED ON")) : "";
-        ( trim($rq['fldFName']) === "" && trim($rq['fldLName']) === "" && trim($rq['fldMRN']) === "" && trim($rq['fldORDte']) === "" && trim($rq['fldCHTNNbr']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "AT LEAST ONE QUERY FIELD MUST HAVE A SUPPLIED VALUE")) : "";
-        ( ( trim($rq['fldLName']) !== "" && trim($rq['fldFName']) === "" ) || ( trim($rq['fldLName']) === "" && trim($rq['fldFName']) !== "" ) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "WHEN SEARCHING BY NAME, AT LEAST PARTIALS OF BOTH FIRST AND LAST NAME MUST BE SUPPLIED")) : "";
-        ( strlen(trim($rq['fldLName'])) === 1 ) ? (list( $errorInd, $msgArr[] ) = array(1 , "SUPPLIED LAST NAME MUST BE LONGER THAN ONE (1) CHARACTER.")) : "";
-        ( trim($rq['fldMRN']) !== "" && preg_match('/[^0-9\%]/',trim($rq['fldMRN'])) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "MRNs MUST BE NUMERIC REPRESENTATIONS")) : "";       
-        ( trim($rq['fldORDte']) !== "" && !ssValidateDate($rq['fldORDte'],'m/d/Y') ) ? (list( $errorInd, $msgArr[] ) = array(1 , "O.R. DATE FORMAT IS INCORRECT")) : "";        
+      $r = json_encode( $rqst );
+      $u = json_encode( $usr );
 
-        ( (trim($rq['fldFName']) !== "" || trim($rq['fldLName']) !== "" || trim($rq['fldMRN']) !== "" || trim($rq['fldORDte']) !== "" ) && trim($rq['fldCHTNNbr']) !== "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "SEARCHES FOR \"ELOG ARCHIVE\" DONOR INFORMATION CANNOT BE PERFORMED WITH SEARCHES IN THE GENERAL CATEGORY.")) : ""; 
-
-
-        $valFN = $rq['fldFName'];
-        $valLN = $rq['fldLName'];
-        $valMR = $rq['fldMRN'];
-        $valOR = $rq['fldORDte'];
-        $valCH = $rq['fldCHTNNbr'];
-        if ( $errorInd === 0 ) { 
-          if ( (trim($rq['fldFName']) === "" && trim($rq['fldLName']) === "" && trim($rq['fldMRN']) === "" && trim($rq['fldORDte']) === "" ) && trim($rq['fldCHTNNbr']) !== "" ) {
-            $chk = "ELOG ARCHIVAL SEARCH IS NOT ACTIVE IN THIS RELEASE";
-
-
-          } else {
-            $sql = "SELECT schd.ORSchdtid as pxiid, schd.ORSchdid, ifnull(date_format(ors.ordate,'%m/%d/%Y'),'') as ordate, ifnull(ors.forlocation,'') orlocation, ifnull(schd.starttime,'') as procedurestart, ifnull(schd.surgeon,'') as surgeon, concat(ifnull(schd.patlast,'ERROR'),', ', ifnull(schd.PatFirst,'ERROR')) as donorname, ifnull(schd.mrn,'0000000') as mrn, concat(ifnull(schd.age,'-'),'/',ifnull(schd.race,'-'),'/',ifnull(schd.sex,'-')) donorars, ifnull(schd.procdetails,'') as procdetails FROM ORSCHED.ut_zck_ORSchDetail schd left join ORSCHED.ut_zck_ORSchds ors on schd.ORSchdid = ors.ORSchedid where 1=1";
-            if ( trim($rq['fldFName']) !== "" ) { 
-              $sql .= " and patfirst like :firstname";
-              $varr[':firstname'] = "{$rq['fldFName']}%";
-            }
-            if ( trim($rq['fldLName']) !== "" ) { 
-              $sql .= " and patlast like :lastname";
-              $varr[':lastname'] = "{$rq['fldLName']}%";
-            }
-            if ( trim($rq['fldMRN']) !== "" ) { 
-              $sql .= " and schd.mrn like :mrn";
-              $varr[':mrn'] = "{$rq['fldMRN']}%";
-            }
-            if ( trim($rq['fldORDte']) !== "" ) { 
-              $sql .= " and date_format(ors.ordate,'%m/%d/%Y') = :ordte";
-              $varr[':ordte'] = "{$rq['fldORDte']}";
-            }
-
-            $sql .= " limit 500";
-
-            $rs = $conn->prepare($sql);
-            $rs->execute($varr);  
-            if ( $rs->rowCount() < 1 ) { 
-              $chk = "NO DONOR INFORMATION FOUND MATCHING YOUR QUERY PARAMETERS";
-            } else { 
-                $chk = "<div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>";
-                $chk .= "<table border=0 id=donorDataDsp><tr><td colspan=9 id=headerLine>Donors Found: " . $rs->rowCount() . "</td></tr><tr><th>Schedule<br>Date</th><th>Schedule<br>Institution</th><th>Procedure<br>Start-time</th><th>Donor Name</th><th>MRN</th><th>Donor Record<br>Age/Race/Sex</th><th>Surgeon</th><th>Procedure<br>Description</th></tr><tbody>";  
-              $rowcnt = 0;  
-              while ($r = $rs->fetch(PDO::FETCH_ASSOC)) { 
-                //. "<td valign=top>{$r['pxiid']}</td>"
-                $chk .= "<tr id=\"datarow{$rowcnt}\" data-pxiid=\"{$r['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
-                      . "<td valign=top>{$r['ordate']}</td>"
-                      . "<td valign=top>{$r['orlocation']}</td>"
-                      . "<td valign=top>{$r['procedurestart']}</td>"
-                      . "<td valign=top>{$r['donorname']}</td>"
-                      . "<td valign=top>{$r['mrn']}</td>"
-                      . "<td valign=top>{$r['donorars']}</td>"
-                      . "<td valign=top>{$r['surgeon']}</td>"
-                      . "<td valign=top>{$r['procdetails']}</td>"
-                      . "</tr>";
-                $rowcnt++;
-              }
-              $chk .= "</tbody></table>";
-              $chk .= <<<THISBAR
-              <div id=prLocalBBar>
-                <div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">send</i></div><div class=popupToolTip>Send Donor to today's schedule</div></div>
-                <div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">create</i></div><div class=popupToolTip>Create New Donor Record</div></div>
-              </div>
-THISBAR;
-            }
-          } 
-        } else { 
-          $chk = "ERROR(s):";  
-          foreach ( $msgArr as $evl ) { 
-            $chk .= "<br>{$evl}";
-          }
-        }
-        $rdsp = "<div id=datadspdiv>{$chk}</div>";
-      }      
-    } else { 
-        $rdsp = "";
-    }
-  
     $rt = <<<PGCONTENT
+
 <div id=pgHolder>
-   <div id=instructionBlock>Use this screen to look up possible CHTN Donors.  If a donor is not found in the system, You will be presented with an add donor button at the end of a search. (Wildcard: '%')  </div>
+
+   <div id=instructionBlock>Use this screen to look up possible CHTN Donors.  If a donor is not found in the system, You will be presented with an add donor button at the end of a search.  </div>
+
    <div class=elementHolder>
        <div class=fldLabel>First Name</div>
-       <div class=fldHolder><input type=text id=fldFName value="{$valFN}"></div>
+       <div class=fldHolder><input type=text id=fldFName></div>
    </div>
+
    <div class=elementHolder>
        <div class=fldLabel>Last Name</div>
-       <div class=fldHolder><input type=text id=fldLName value="{$valLN}"></div>
+       <div class=fldHolder><input type=text id=fldLName></div>
    </div>
+
    <div class=elementHolder>
        <div class=fldLabel>MRN</div>
-       <div class=fldHolder><input type=text id=fldMRN value="{$valMR}"></div>
+       <div class=fldHolder><input type=text id=fldMRN></div>
    </div>
+
    <div class=elementHolder>
        <div class=fldLabel>O.R. Date (mm/dd/YYYY)</div>
-       <div class=fldHolder><input type=text id=fldORDte value="{$valOR}"></div>
+       <div class=fldHolder><input type=text id=fldORDte></div>
    </div>
+
    <div class=elementHolder>
-       <div class=fldLabel>CHTN # (Archive ELOG Search)</div>
-       <div class=fldHolder><input type=text id=fldCHTNNbr value="{$valCH}"></div>
+       <div class=fldLabel>CHTN #</div>
+       <div class=fldHolder><input type=text id=fldCHTNNbr></div>
    </div>
+
     <div><button onclick="sendSrchRqst();" id=btnSrchDonor>Search</button></div>
+
 </div>
-{$rdsp}
 PGCONTENT;
     return $rt;
   }
 
   function consentwatch ( $rqst, $usr ) {
-
-    $uploadside = <<<UPLOADSIDE
-<div>Upload Consent Form</div>
-<p>
-<div>Donor Information</div>
-<div id=elementlineOne>
-  <div class=element><div class=elementLabel>Donor First Name</div><div class=elemental><input type=text></div></div>
-  <div class=element><div class=elementLabel>Donor Last Name</div><div class=elemental><input type=text></div></div>
-  <div class=elementwithbtn><div class=elementLabel>CHTN #</div><div class=elementbtn><i class="material-icons">search</i></div><div class=elemental><input type=text></div></div>
-</div>
-<p>
-<div>Surgeon/Investigator</div>
-<div id=elementlineTwo>
-  <div class=element><div class=elementLabel>First Name</div><div class=elemental><input type=text></div></div>
-  <div class=element><div class=elementLabel>Last Name</div><div class=elemental><input type=text></div></div>
-  <div class=element><div class=elementLabel>Anticipated Date (mm/dd/YYY)</div><div class=elemental><input type=text></div></div>
-</div>
-
-
-
-UPLOADSIDE;
-
+      $r = json_encode( $rqst );
+      $u = json_encode( $usr );
 
     $rt = <<<PGCONTENT
-<div id=pgHolder>
-<div id=uploadSide>{$uploadside}</div>
-<div id=consentDspSide>Consent Display</div>
-</div>
+
+Consent Watch Page
+
 PGCONTENT;
-return $rt;
-}
+    return $rt;
+  }
 
-function root ( $rqst, $usr ) {
+  function root ( $rqst, $usr ) {
 
-  $r = json_encode( $rqst );
-  $u = json_encode( $usr );
-$rt = <<<PGCONTENT
+      $r = json_encode( $rqst );
+      $u = json_encode( $usr );
+    $rt = <<<PGCONTENT
 
 <div id=rootTitle>CHTN Eastern Secure Donor Vault</div>
 <div id=rootDesc>This data server contains data on the donors of biosample research material of the Cooperative Human Tissue Network Eastern Division (CHTNED).  
-You must have explicit data access credentials to utilize this data server.  If you do not have the requisite access level, please click the logout button on the control bar on the left of this screen.
+    You must have explicit data access credentials to utilize this data server.  If you do not have the requisite access level, please click the logout button on the control bar on the left of this screen.
 
 </div>
 
 PGCONTENT;
-return $rt;
-}
+    return $rt;
+  }
 
-function login( $rqst ) {
-$rqst = explode("/",$_SERVER['REQUEST_URI']);
-$usrsssession =  cryptservice($rqst[1],'d');
-$pdta['usrency'] = $rqst[1];
-$rsltdta = json_decode(callrestapi("POST", dataTreeSS . "/data-doers/vault-get-user-email",serverIdent, serverpw, json_encode($pdta)), true);
+  function login( $rqst ) {
+    $rqst = explode("/",$_SERVER['REQUEST_URI']);
+    $usrsssession =  cryptservice($rqst[1],'d');
+    $pdta['usrency'] = $rqst[1];
+    $rsltdta = json_decode(callrestapi("POST", dataTreeSS . "/data-doers/vault-get-user-email",serverIdent, serverpw, json_encode($pdta)), true);
 //    $rsltdta = callrestapi("POST", dataTreeSS . "/data-doers/vault-get-user-email",serverIdent, serverpw, json_encode($pdta));
-$dts = $rsltdta['DATA'];
-$ssversion = scienceserverTagVersion;
+    $dts = $rsltdta['DATA'];
+    $ssversion = scienceserverTagVersion;
 
-$rt = <<<PGCONTENT
-<div id=announcer>
-  <div id=announceTitle>ScienceServer Donor Vault</div>
-  <div>
-    <div class=fldLabel>Identified User</div>
-    <div class=fldHolder><input type=text value="{$dts}" READONLY id=dvUser></div>
-  </div>
-  <div>
-    <div class=fldLabel>Single-Use Password</div>
-    <div class=fldHolder><input type=text id=dvPWD></div>
+    $rt = <<<PGCONTENT
+    <div id=announcer>
+      <div id=announceTitle>ScienceServer Donor Vault</div>
+      <div>
+        <div class=fldLabel>Identified User</div>
+        <div class=fldHolder><input type=text value="{$dts}" READONLY id=dvUser></div>
+      </div>
+      <div>
+        <div class=fldLabel>Single-Use Password</div>
+        <div class=fldHolder><input type=text id=dvPWD></div>
 
-  </div>
-  <div id=actionBtnLoginHolder>
-    <button id=actionBtnLogin><i class="material-icons">verified_user</i> Login</button>
-  </div>
+      </div>
+      <div id=actionBtnLoginHolder>
+        <button id=actionBtnLogin><i class="material-icons">verified_user</i> Login</button>
+      </div>
 
- <!--REMOVE THIS DIV WARNING IN PRODUCTION //-->
- <div id=devHIPAAWarning>THIS IS A DEVELOPMENT SITE - DO NOT USE ANY HIPAA DATA</div>   
-    
-  <div id=announcerText>
-    <p><b>Disclaimer</b>: This site is for the use of CHTNED/UPHS Employees only.  Use of this site is monitored closely.  Do Not attempt to access unless you have permission from CHTNED Management.  You must have a ScienceServer Login and be logged into ScienceServer to access the data in this vault. This is the Specimen Management Data Application (SMDA) Donor Vault for the Eastern Division of the Cooperative Human Tissue Network.  It provides access to donor data for reference by authorized UPHS-specific employees of the CHTNEastern Division.   You must have a valid username and password to access this system.  If you need credentials for this application, please contact a CHTNED Manager.  Unauthorized activity is tracked and reported! To contact the offices of CHTNED, please call (215) 662-4570 or email chtnmail /at/ uphs.upenn.edu.
-  <div id=loginvnbr>(Donor Vault Version: {$ssversion} [ScienceServer])</div>
-  </div>
-</div>
+     <!--REMOVE THIS DIV WARNING IN PRODUCTION //-->
+     <div id=devHIPAAWarning>THIS IS A DEVELOPMENT SITE - DO NOT USE ANY HIPAA DATA</div>   
+        
+      <div id=announcerText>
+        <p><b>Disclaimer</b>: This site is for the use of CHTNED/UPHS Employees only.  Use of this site is monitored closely.  Do Not attempt to access unless you have permission from CHTNED Management.  You must have a ScienceServer Login and be logged into ScienceServer to access the data in this vault. This is the Specimen Management Data Application (SMDA) Donor Vault for the Eastern Division of the Cooperative Human Tissue Network.  It provides access to donor data for reference by authorized UPHS-specific employees of the CHTNEastern Division.   You must have a valid username and password to access this system.  If you need credentials for this application, please contact a CHTNED Manager.  Unauthorized activity is tracked and reported! To contact the offices of CHTNED, please call (215) 662-4570 or email chtnmail /at/ uphs.upenn.edu.
+      <div id=loginvnbr>(Donor Vault Version: {$ssversion} [ScienceServer])</div>
+      </div>
+    </div>
 
 PGCONTENT;
-return $rt;
-}
+    return $rt;
+  }
 
 
 }
 
 class stylesheets {
 
-public $color_white = "255,255,255";
-public $color_black = "0,0,0";
-public $color_grey = "224,224,224";
-public $color_lgrey = "245,245,245";
-public $color_brwgrey = "239,235,233";
-public $color_ddrwgrey = "189,185,183";
-public $color_lamber = "255,248,225";
-public $color_dullyellow = "226,226,125";
-public $color_mamber = "204,197,175";
-public $color_mgrey = "160,160,160";
-public $color_dblue = "0,32,113";
-public $color_mblue = "13,70,160";
-public $color_lblue = "84,113,210";
-public $color_cornflowerblue = "100,149,237";
-public $color_lightblue = "209, 219, 255";
-public $color_zgrey = "48,57,71";
-public $color_neongreen = "57,255,20";
-public $color_bred = "237, 35, 0";
-public $color_darkgreen = "0, 112, 13";
-public $color_lightgrey = "239, 239, 239";
-public $color_darkgrey = "145,145,145";
-public $color_zackgrey = "48,57,71";  //#303947
-public $color_zackcomp = "235,242,255"; //#ebf2ff
-public $color_deeppurple = "107, 18, 102";
-public $color_aqua = "203, 232, 240";
+  public $color_white = "255,255,255";
+  public $color_black = "0,0,0";
+  public $color_grey = "224,224,224";
+  public $color_lgrey = "245,245,245";
+  public $color_brwgrey = "239,235,233";
+  public $color_ddrwgrey = "189,185,183";
+  public $color_lamber = "255,248,225";
+  public $color_dullyellow = "226,226,125";
+  public $color_mamber = "204,197,175";
+  public $color_mgrey = "160,160,160";
+  public $color_dblue = "0,32,113";
+  public $color_mblue = "13,70,160";
+  public $color_lblue = "84,113,210";
+  public $color_cornflowerblue = "100,149,237";
+  public $color_lightblue = "209, 219, 255";
+  public $color_zgrey = "48,57,71";
+  public $color_neongreen = "57,255,20";
+  public $color_bred = "237, 35, 0";
+  public $color_darkgreen = "0, 112, 13";
+  public $color_lightgrey = "239, 239, 239";
+  public $color_darkgrey = "145,145,145";
+  public $color_zackgrey = "48,57,71";  //#303947
+  public $color_zackcomp = "235,242,255"; //#ebf2ff
+  public $color_deeppurple = "107, 18, 102";
+  public $color_aqua = "203, 232, 240";
 
-//Z-INDEX:  0-30 - Base - Level // 40-49  - Floating level // 100 Black wait screen // 100+ dialogs above wait screen
+  //Z-INDEX:  0-30 - Base - Level // 40-49  - Floating level // 100 Black wait screen // 100+ dialogs above wait screen
 
-function pendingpathologyreportlisting () { 
-
-$rtnThis = <<<STYLESHEET
+  function pendingpathologyreportlisting () { 
+    
+    $rtnThis = <<<STYLESHEET
 #dataDsp { padding: 2vh 1vw 2vh 0; } 
 
 #warningbar { background: rgba({$this->color_bred},.8); font-size: 2.2vh; text-align: center; color: rgba({$this->color_white},1); font-weight: bold; padding: 1vh 0; position: fixed; top: 1vh; left: 4vw; width: 95vw;   } 
@@ -1262,33 +1121,7 @@ body { margin: 0; padding-left: 4vw;  }
 
 
 #standardModalBacker { position: fixed; top: 0; left: 0;  z-index: 100; background: rgba({$this->color_zackgrey},.7); height: 100vh; width: 100vw; display: none; }
-
-input:focus, input:active {background: rgba({$this->color_lamber},.5); border: 1px solid rgba({$this->color_dblue},.5);  outline: none;  }
-
-
-
 STYLESHEET;
-    return $rtnThis;
-  }
-
-  function consentwatch() { 
-    $rtnThis = <<<stylesheets
-#pgHolder { display: grid; grid-template-columns: 2fr 1fr; }
-
-#consentDspSide { border-left: 1px solid rgba({$this->color_zackgrey},1); }  
-
-input { font-size: 1.5vh; padding: 8px 4px 8px 4px; border: 1px solid rgba({$this->color_zackgrey},1); }
-
-#elementlineOne { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 38vw; }
-#elementlineTwo { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 38vw; }
-
-.elementwithbtn { display: grid; grid-template-columns: 2fr 1fr; }
-.elementwithbtn .elementLabel { grid-column: 1 / 2; grid-row: 1; } 
-.elementwithbtn .elementbtn { grid-row: 1 / 3; grid-column: 3 / 4; text-align: center; padding: 14px 4px; }
-.elementwithbtn .elemental { grid-row: 2; } 
-
-
-stylesheets;
     return $rtnThis;
   }
 
@@ -1309,20 +1142,6 @@ stylesheets;
 #fldCHTNNbr { width: 13vw; } 
 
 #btnSrchDonor { border: 1px solid rgba({$this->color_zackgrey},1); font-size: 1.5vh; padding: 6px 8px 6px 8px; margin-top: 1.3vh; }
-
-
-#warningbar { background: rgba({$this->color_bred},.8); font-size: 2.2vh; text-align: center; color: rgba({$this->color_white},1); font-weight: bold; padding: 1vh 0; position: fixed; top: 11vh; left: 4vw; width: 95vw;   } 
-
-#donorDataDsp { font-size: 1.5vh; color: rgba({$this->color_zackgrey},1); margin-top: 7vh; margin-left: 3vw; width: 92vw; }
-#donorDataDsp #headerLine { background: rgba({$this->color_white},1); }
-#donorDataDsp tr th { background: rgba({$this->color_dblue},1); color: rgba({$this->color_white},1); font-size: 1.1vh; padding: 8px 4px; }  
-#donorDataDsp tbody tr:nth-child(odd) { background: rgba({$this->color_neongreen},.1); } 
-#donorDataDsp tbody tr:hover { background: rgba({$this->color_lamber},.7); cursor: pointer; }  
-#donorDataDsp tbody tr[data-selected='true'] { background: rgba({$this->color_cornflowerblue},.3);    }
-
-#donorDataDsp tbody tr td { border-bottom: 1px solid rgba({$this->color_zackgrey},1); border-right: 1px solid rgba({$this->color_zackgrey},1); padding: 8px 4px; }
-
-#prLocalBBar {  position: fixed; z-index: 28; top: 16vh; left: 3.5vw; }
 
 stylesheets;
     return $rtnThis;

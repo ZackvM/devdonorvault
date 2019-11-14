@@ -189,5 +189,18 @@ function guidv4() {
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 }
 
+function chtnencrypt($pdata) {  
+  $publicCert = openssl_pkey_get_public("file:///" . serverkeys . "/pubkey.pem");
+  openssl_public_encrypt($pdata, $crypted, $publicCert);
+  $crypted = base64_encode($crypted);  
+  return "{$crypted}";
+}
 
+function chtndecrypt($pdata) {   
+  $encMsg = base64_decode($pdata); 
+  $privateKey = openssl_pkey_get_private("file:///" . serverkeys . "/privatekey.pem");     
+  //openssl_pkey_export($privateKey, $pkeyout);  TO TEST AND OUTPUT PRIVATE KEY - TESTING AND REFERENCE ONLY
+  openssl_private_decrypt($encMsg, $decrypted, $privateKey); 
+  return $decrypted; 
+}
 
