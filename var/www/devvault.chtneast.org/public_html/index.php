@@ -692,6 +692,21 @@ function navigateSite(whichURL) {
     }
 }
 
+function fillField( whichfieldId, whatvalue, whatdsp ) { 
+  if ( byId(whichfieldId) ) { 
+    if ( byId(whichfieldId+'Val') ) { 
+      byId(whichfieldId+'Val').value = whatvalue;
+    }
+    byId(whichfieldId).value = whatdsp;
+  }
+  switch ( whichfieldId ) { 
+    case 'cDoc':
+      alert('Change Questions: (id: '+whatvalue+')');
+    break;
+
+  }
+}
+
 JAVASCR;
     return $rtnThis;
   }
@@ -1087,6 +1102,29 @@ PGCONTENT;
 
   function consentwatch ( $rqst, $usr ) {
 
+      //"RESPONSECODE":200,"MESSAGE":[],"ITEMSFOUND":2,"DATA":[{"menuvalue":"819","dspvalue":"CHTNEastern Consent","useasdefault":1},{"menuvalue":"820","dspvalue":"Other Consent Document","useasdefault":0}]} 
+      $rsltdta = callrestapi("POST", dataTreeSS . "/data-doers/vault-consent-document-listing",serverIdent, serverpw, $passedData);          
+      $dta = json_decode($rsltdta, true);
+      if ( (int)$dta['RESPONSECODE'] === 200 ) { 
+          //BUILD MENU
+        $cdocdftdsp = "";
+        $cdocdftval = "";
+        $cDocMnu = "<table>";
+        foreach ( $dta['DATA'] as $k => $v ) {  
+          if ( (int)$v['useasdefault'] === 1 ) {
+            $cdocdftdsp = $v['dspvalue'];
+            $cdocdftval = $v['menuvalue'];
+          }
+          $cDocMnu .= "<tr><td onclick=\"fillField('cDoc',{$v['menuvalue']},'{$v['dspvalue']}');\">{$v['dspvalue']}</td></tr>";
+        }
+        $cDocMnu .= "</table>";
+      } else { 
+        $cDocMnu = "ERROR:  Error in Retreiving Listing";
+      }
+
+
+
+
     $uploadside = <<<UPLOADSIDE
 <div>Upload Consent Form</div>
 <p>
@@ -1103,8 +1141,16 @@ PGCONTENT;
   <div class=element><div class=elementLabel>Last Name</div><div class=elemental><input type=text></div></div>
   <div class=element><div class=elementLabel>Anticipated Date (mm/dd/YYY)</div><div class=elemental><input type=text></div></div>
 </div>
-
-
+<p>
+<div>Document Metrics</div>
+<div id=elementlineThree>
+  <div class=elementmenu>
+    <div class=elementLabel>Consent Document</div>
+    <div class=elemental><input type=hidden id=cDocVal value={$cdocdftval}><input type=text id=cDoc value="{$cdocdftdsp}"></div>
+    <div class=optionlisting style="width: 12vw;">{$cDocMnu}</div>
+  </div>
+  <div id=consentquestions>CONSENT QUESTIONS GO HERE</div>
+</div>
 
 UPLOADSIDE;
 
@@ -1287,6 +1333,13 @@ input { font-size: 1.5vh; padding: 8px 4px 8px 4px; border: 1px solid rgba({$thi
 .elementwithbtn .elementbtn { grid-row: 1 / 3; grid-column: 3 / 4; text-align: center; padding: 14px 4px; }
 .elementwithbtn .elemental { grid-row: 2; } 
 
+
+.elementmenu { position: relative; }
+
+.elementmenu:hover .optionlisting { display: block; } 
+.optionlisting { border: 1px solid rgba({$this->color_zackgrey},1); box-sizing: border-box; height: 8vh; margin-top: 1px; overflow-y: auto; overflow-x: hidden; display: none; position: absolute; z-index: 10; background: rgba({$this->color_white},1);  } 
+
+#consentquestions { width: 24vw; height: 10vh; margin-top: 1vh;  border: 1px solid rgba({$this->color_zackgrey},.5); } 
 
 stylesheets;
     return $rtnThis;
