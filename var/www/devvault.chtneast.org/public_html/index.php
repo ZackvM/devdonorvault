@@ -270,6 +270,49 @@ class dataposters {
 
 class datadoers {
 
+    function saveconsentdocument ( $request, $passedData ) { 
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
+      if ( (int)$vuser->responsecode === 200 ) { 
+        
+          $pdta = json_decode($passedData, true); 
+
+          //{\"fldDonorFName\":\"z\",\"fldDonorLName\":\"z\",\"fldCHTNList\":\"z\",\"fldDnrAge\":\"z\",\"fldDnrAgeUOM\":\"\",\"fldDnrRace\":\"\",\"fldDnrSex\":\"\",\"fldIFName\":\"z\",\"fldILName\":\"z\",\"fldProcDte\":\"12\\/20\\/2019\",\"ansQ1.1\":\"Yes\",\"ansQ1.2\":\"Yes\",\"ansQ1.3\":\"Yes\",\"ansQ1.4\":\"Yes\",\"ansQ1.5\":\"12\\/09\\/2019\",\"consentfile\"
+          foreach ( $pdta as $key => $value ) {
+              if ( !cryptservice($key,'d') ) { 
+                 $locarr[ $key ] = $value; 
+              } else { 
+                 $locarr[ cryptservice($key,'d') ] = chtndecrypt( $value );
+              }
+          }
+          
+          //TODO: DATA CHECKS
+          //TODO: CHECK ALL FIELDS
+          //TODO:  CHECK CONSENT NOT UPLOADED BEFORE
+          
+          require( serverkeys . '/sspdo.zck');
+          $insSQL = "insert into ORSCHED.ut_informed_consents ("
+                                                                                                 . "donorfname"
+                                                                                                 . ", donorlname"
+                                                                                                 . ", chtnnbrlist, age, ageuom, race, sex, rqstrfname, rqstrlname, anticprocdate, consentdoc"
+                                                                                                 . ", documentstring) values(:donorfname, :donorlname, :chtnnbrlist, :age, :ageuom, :race, :sex, :rqstrfname, :rqstrlname, :anticprocdate, :consentdoc, :docstring)";
+          $insRS = $conn->prepare($insSQL); 
+          //$insRS->execute(array(':donorfname' => $locarr['fldDonorFName'], ':donorlname' => $locarr['fldDonorlName'], ':chtnnbrlist' => $locarr['fldCHTNList'], ':age' => $locarr['fldDnrAge'], ':ageuom' => $locarr['fldDnrAgeUOM'], ':race' => $locarr['fldDnrRace'], ':sex' => $locarr['fldDnrSex'], ':rqstrfname' => $locarr['']       ':docstring' => $locarr['consentfile']));
+          
+          
+          
+          $dta = "ZZZZZ";
+          //$dta = $conn->lastInsertId();
+      }  else { 
+          $dta = "USER NOT ALLOWED";
+      }  
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;      
+    }
+    
     function generatedialog ( $request, $passedData ) { 
       $responseCode = 503;  
       $vuser = new vaultuser();
@@ -1167,11 +1210,20 @@ JAVASCR;
     $fldDFName = cryptservice('fldDonorFName','e');
     $fldDLName = cryptservice('fldDonorLName','e');
     $fldCHTNList = cryptservice('fldCHTNList','e');
+
+    $fldDAge = cryptservice('fldDnrAge','e');
+    $fldDAgeUOM = cryptservice('fldDnrAgeUOM','e');
+    $fldDRace = cryptservice('fldDnrRace','e');
+    $fldDSex = cryptservice('fldDnrSex','e');
+    
     $fldIFName = cryptservice('fldIFName','e');
     $fldILName = cryptservice('fldILName','e');
     $fldProcDte = cryptservice('fldProcDte','e');
 
+    $fldconsent = cryptservice('consentfile','e');    
+    
     $rtnThis = <<<JAVASCR
+
 var key;
 function bodyLoad() {
   setMaxDigits(262);
@@ -1185,7 +1237,6 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 }, false);
 
-
 function consentcancel() { 
   location.reload(true);
 }
@@ -1195,11 +1246,34 @@ function consentwatchsave() {
   pdta['{$fldDFName}'] = window.btoa( encryptedString ( key, byId('fldDonorFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldDLName}'] = window.btoa( encryptedString ( key, byId('fldDonorLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldCHTNList}'] = window.btoa( encryptedString ( key, byId('fldCHTNList').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDAge}'] = window.btoa( encryptedString ( key, byId('fldDnrAge').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDAgeUOM}'] = window.btoa( encryptedString ( key, byId('qryAgeUOMValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDRace}'] = window.btoa( encryptedString ( key, byId('qryRaceValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDSex}'] = window.btoa( encryptedString ( key, byId('qrySexValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldIFName}'] = window.btoa( encryptedString ( key, byId('fldIFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldILName}'] = window.btoa( encryptedString ( key, byId('fldILName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldProcDte}'] = window.btoa( encryptedString ( key, byId('fldProcDte').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
-
-  console.log( JSON.stringify( pdta ) );
+  pdta['consentdoc'] = byId('cDoc').value;
+  var named = document.getElementById("consentquestions"); 
+  var elem = named.getElementsByTagName("input");
+  for (var i = 0, n = elem.length; i < n; i = i + 1) {
+    pdta[ elem[i].id ] =  elem[i].value.trim();
+  }  
+  pdta['consentfile'] =    byId('btoIConsent').value.trim();
+  var passdata = JSON.stringify(pdta);
+  universalAJAX("POST", "save-consent-document", passdata, updateConsentResponse, 1);
+}
+  
+function updateConsentResponse( rtnData ) {
+   console.log ( rtnData );  
+}
+  
+function btoathisfile(btoadsp, passedfile) {
+   var reader = new FileReader();
+   reader.onload = function(e) {
+     byId(btoadsp).innerHTML = reader.result;
+    };
+    reader.readAsDataURL(passedfile);
 }
 
 JAVASCR;
@@ -1503,6 +1577,18 @@ PGCONTENT;
         //TODO: BUILD ERROR
       }
 
+      $agedta = json_decode(callrestapi("GET", dataTreeSS . "/global-menu/age-uoms",serverIdent, serverpw,""),true);  
+      if ( (int)$agedta['ITEMSFOUND'] > 0 ) { 
+        //BUILD MENU
+        $ageuom = "<table border=0 class=menuDropTbl><tr><td align=right onclick=\"fillField('qryAgeUOM','','');\" class=ddMenuClearOption>[clear]</td></tr>";
+        foreach ($agedta['DATA'] as $aval) { 
+          $ageuom .= "<tr><td onclick=\"fillField('qryAgeUOM','{$aval['lookupvalue']}','{$aval['menuvalue']}');\" class=ddMenuItem>{$aval['menuvalue']}</td></tr>";
+        }
+        $ageuom .= "</table>";
+        $aMenu = "<div class=menuHolderDiv><input type=hidden id=qryAgeUOMValue><input type=text id=qryAgeUOM READONLY class=\"inputFld\" style=\"width: 7vw;\"><div class=valueDropDown style=\"min-width: 7vw;\">{$ageuom}</div></div>";
+      } else { 
+        //TODO: BUILD ERROR
+      }
 
       $consentQList = "";
       if ( trim($cdocdftval) !== "" && is_numeric($cdocdftval) ) { 
@@ -1513,14 +1599,17 @@ PGCONTENT;
               switch ( $cqv['additionalInformation'] ) { 
                 case "YN":
                   $ynMnu = "<table border=0 class=menuDropTbl>";
-                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',1,'Yes');\" class=ddMenuItem>Yes</td></tr>";
-                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',0,'No');\" class=ddMenuItem>No</td></tr>";
-                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',3,'illegible/No Specified');\" class=ddMenuItem>illegible/No Specified</td></tr>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}','1','Yes');\" class=ddMenuItem>Yes</td></tr>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}','0','No');\" class=ddMenuItem>No</td></tr>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}','3','illegible/No Specified');\" class=ddMenuItem>illegible/No Specified</td></tr>";
                   $ynMnu .= "</table>";
 
-                  $ansElemt = "<div><div class=elementmenu> <div class=elemental><input type=hidden id=\"ans{$cqv['mennuvalue']}Value\" value=\"\"><input type=text id=\"ans{$cqv['menuvalue']}\" value=\"\" style=\"width: 8vw;\"><div class=optionlisting style=\"width: 8vw;\">{$ynMnu}</div></div></div></div>";  
+                  $ansElemt = "<div><div class=elementmenu> <div class=elemental><input type=text id=\"ans{$cqv['menuvalue']}\" value=\"\" style=\"width: 8vw;\" READONLY><div class=optionlisting style=\"width: 8vw;\">{$ynMnu}</div></div></div></div>";  
                   break;
                 case "TXD":
+                  $ansElemt = "<div><input type=\"text\" id=\"ans{$cqv['menuvalue']}\" style=\"width: 8vw;\"></div>";  
+                  break;
+                case "TXT":
                   $ansElemt = "<div><input type=\"text\" id=\"ans{$cqv['menuvalue']}\" style=\"width: 8vw;\"></div>";  
                   break;
                 default:
@@ -1542,7 +1631,11 @@ PGCONTENT;
   <div class=elementwithbtn><div class=elementLabel>CHTN # (Comma seperated)</div><div class=elemental><input type=text id=fldCHTNList></div></div>
 </div>
 <div id=elementlineFour>
-  <div class=element><div class=elementLabel>Donor Age</div><div class=elemental><input type=text id=fldDonorAge style="text-align: right;"></div><div style="font-size: .8vh;">(Format: Integer Value Only)</div></div>
+  <div class=element><div class=elementLabel>Donor Age</div><div class=elemental><table border=0 cellspacing=0 cellpadding=0><tr>
+      <td><div class=element><input type=text id=fldDnrAge value="" style="width: 2vw; text-align: right;"></div></td>
+      <td style="padding: 0 0 0 2px;"><div class=element>{$aMenu}</div></td>
+    </tr>
+    </table></div></div>
   <div class=element><div class=elementLabel>Donor Race</div><div class=elemental>{$rMenu}</div></div>
   <div class=element><div class=elementLabel>Donor Sex</div><div class=elemental>{$sMenu}</div></div>
 </div>
@@ -1559,7 +1652,7 @@ PGCONTENT;
   <div class=elementmenu>
     <div class=elementLabel>Consent Document</div>
     <div class=elemental><input type=hidden id=cDocVal value={$cdocdftval}><input type=text id=cDoc value="{$cdocdftdsp}"></div>
-    <div class=optionlisting style="width: 30vw;">{$cDocMnu}</div>
+    <div class=optionlisting style="width: 34vw;">{$cDocMnu}</div>
   </div>
   <div id=consentquestions>{$consentQList}</div>
 </div>
@@ -1567,7 +1660,7 @@ PGCONTENT;
 <div class=cwSectionHeader>Upload File</div>
 <div>
   <div>Choose a File</div>
-  <div><input type="file" name="file" id="file" class="inputfile" /></div>
+  <div><input type="file" name="file" id="file" class="inputfile" accept=".pdf" onchange="btoathisfile('btoIConsent', this.files[0]);" /><TEXTAREA id="btoIConsent" style="display: none;"></textarea></div>
 </div>
 
 <div align=right style="width: 30vw;">
@@ -1768,16 +1861,16 @@ STYLESHEET;
 #pgHolder { display: grid; grid-template-columns: 35vw 2fr; }
 
 #uploadSide { width: 35vw; } 
-#cwTitle { width: 30vw; text-align: center; font-size: 1.8vh; padding: 1vh 0 .3vh 0; font-weight: bold; border-bottom: 1px solid rgba({$this->color_dblue},1); color: rgba({$this->color_dblue},1);  }
+#cwTitle { width: 34vw; text-align: center; font-size: 1.8vh; padding: 1vh 0 .3vh 0; font-weight: bold; border-bottom: 1px solid rgba({$this->color_dblue},1); color: rgba({$this->color_dblue},1);  }
 #cwDirections { font-size: 1.3vh; text-align: justify; width: 30vw;  }
-.cwSectionHeader { font-size: 1.6vh; width: 30vw; background: rgba({$this->color_cornflowerblue}, .6); color: rgba({$this->color_white}, 1); padding: .4vh 0 .4vh .2vw; border: 1px solid rgba({$this->color_dblue},1);  } 
+.cwSectionHeader { font-size: 1.6vh; width: 34vw; background: rgba({$this->color_cornflowerblue}, .6); color: rgba({$this->color_white}, 1); padding: .4vh 0 .4vh .2vw; border: 1px solid rgba({$this->color_dblue},1);  } 
 
 
-#elementlineOne { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 30vw; }
-#elementlineTwo { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 30vw; }
-#elementlineFour { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 30vw; }
+#elementlineOne { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 34vw; }
+#elementlineTwo { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 34vw; }
+#elementlineFour { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 34vw; }
 
-.elementLabel { padding: .8vh 0 0 0; font-size: 1vh; font-weight: bold;    } 
+.elementLabel { padding: .8vh 0 0 0; font-size: 1.2vh; font-weight: bold;    } 
 
 .elementwithbtn { display: grid; grid-template-columns: 2fr 1fr; }
 .elementwithbtn .elementLabel { grid-column: 1 / 2; grid-row: 1; } 
@@ -1785,8 +1878,8 @@ STYLESHEET;
 .elementwithbtn .elemental { grid-row: 2; } 
 
 
-#elementlineThree { width: 30vw; }
-#cDoc { width: 30vw; } 
+#elementlineThree { width: 34vw; }
+#cDoc { width: 34vw; } 
 
 
 .elementmenu { position: relative; }
@@ -1794,15 +1887,15 @@ STYLESHEET;
 .elementmenu:hover .optionlisting { display: block; } 
 .optionlisting { border: 1px solid rgba({$this->color_zackgrey},1); box-sizing: border-box; height: 8vh; margin-top: 1px; overflow-y: auto; overflow-x: hidden; display: none; position: absolute; z-index: 10; background: rgba({$this->color_white},1);  } 
 
-#consentquestions { width: 30vw; height: 20vh; margin-top: 1vh;  border: 1px solid rgba({$this->color_zackgrey},.1); overflow: auto; } 
+#consentquestions { width: 34vw; height: 25vh; margin-top: 1vh;  border: 1px solid rgba({$this->color_zackgrey},.1); overflow: auto; } 
 
 
 #consentDspSide { border-left: 1px solid rgba({$this->color_zackgrey},1); }  
 
-.cqLine { display: grid; grid-template-columns: 2fr 1fr; width: 29vw; margin-top: .2vh; }
+.cqLine { display: grid; grid-template-columns: 2fr 1fr; width: 33vw; margin-top: .2vh; }
 .cqQstn { padding: .5vh 0 .5vh .3vw; } 
 .cqLine:nth-child(even) { background: rgba({$this->color_grey},.4); } 
-.cqQstn { font-size: 1.2vh; color: rgba({$this->color_zackgrey},1); } 
+.cqQstn { font-size: 1.3vh; color: rgba({$this->color_zackgrey},1); } 
 
 stylesheets;
     return $rtnThis;
