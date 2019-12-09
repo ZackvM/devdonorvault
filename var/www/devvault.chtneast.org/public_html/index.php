@@ -270,6 +270,84 @@ class dataposters {
 
 class datadoers {
 
+    function generatedialog ( $request, $passedData ) { 
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
+      if ( (int)$vuser->responsecode === 200 ) { 
+        $pdta = json_decode($passedData, true);
+        $dlogs = new dialogs();
+        
+        if ( method_exists( $dlogs,str_replace("-","", $pdta['dialog'])) ) { 
+          $funcName = trim( str_replace("-","", $pdta['dialog']) ); 
+          $d = $dlogs->$funcName(); 
+          $dta = array("pageElement" => $d['dialog'], "dialogID" => $d['dialogid'], 'left' => $d['left'], 'top' => $d['top'], 'primeFocus' => $d['primeFocus']);
+          $responseCode = 200;
+        } else { 
+          $msgArr[] = "{$pdta['dialog']} DOES NOT EXIST IN FRAMEWORK.  SEE CHTNEASTERN INFORMATICS";
+          $responseCode = 404;
+        }
+      } else { 
+        $msgArr[] = "USER NOT ALLOWED";
+      }
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;                      
+    } 
+
+    function consentdocquestions ( $request, $passedData ) { 
+  
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      if ( (int)$vuser->responsecode === 200 ) { 
+        $pdta = json_decode( $passedData, true); 
+        $cqDta = json_decode(callrestapi("GET", dataTreeSS . "/vault-consent-doc-questions/" . (int)$pdta['consentid'], serverIdent, serverpw, ""), true);
+        if ( (int)$cqDta['ITEMSFOUND'] > 0 ) {
+          //\"MESSAGE\":\"820\",\"ITEMSFOUND\":3,\"DATA\":[{\"menuvalue\":\"Q2.1\",\"dspvalue\":\"Consent Document Name\",\"additionalInformation\":\"TXT\"},{\"menuvalue\":\"Q2.2\",\"dspvalue\":\"Is Consent Signed?\",\"additionalInformation\":\"YN\"},{\"menuvalue\":\"Q2.3\",\"dspvalue\":\"Date of Signature\",\"additionalInformation\":\"TXD\"}]}}
+
+
+          $consentQList = "";
+          if ( (int)$cqDta['ITEMSFOUND'] > 0 ) { 
+            foreach ( $cqDta['DATA'] as $cqk => $cqv ) { 
+
+              switch ( $cqv['additionalInformation'] ) { 
+                case "YN":
+                  $ynMnu = "<table border=0 class=menuDropTbl>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',1,'Yes');\" class=ddMenuItem>Yes</td></tr>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',0,'No');\" class=ddMenuItem>No</td></tr>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',3,'illegible/No Specified');\" class=ddMenuItem>illegible/No Specified</td></tr>";
+                  $ynMnu .= "</table>";
+
+                  $ansElemt = "<div><div class=elementmenu> <div class=elemental><input type=hidden id=\"ans{$cqv['mennuvalue']}Value\" value=\"\"><input type=text id=\"ans{$cqv['menuvalue']}\" value=\"\" style=\"width: 8vw;\"><div class=optionlisting style=\"width: 8vw;\">{$ynMnu}</div></div></div></div>";  
+                  break;
+                case "TXD":
+                  $ansElemt = "<div><input type=\"text\" id=\"ans{$cqv['menuvalue']}\" style=\"width: 8vw;\"></div>";  
+                  break;
+                case "TXT":
+                  $ansElemt = "<div><input type=\"text\" id=\"ans{$cqv['menuvalue']}\" style=\"width: 8vw;\"></div>";  
+                  break;
+                default:
+                $ansElemt = "<div>&nbsp;</div>";  
+              }         
+              $consentQList .= "<div class=cqLine id='{$cqv['menuvalue']}'><div class=cqQstn>{$cqv['dspvalue']}</div>{$ansElemt}</div>";
+            }
+          }
+
+          $dta = $consentQList;  
+          $responseCode = 200;
+        } else {
+          $msgArr[] = "NO QUESTIONS FOR CONSENT FOUND ... SEE A CHTN INFORMATICS STAFF MEMBER (ERROR: VAULT001)";
+        }
+      } else { 
+        $msgArr[] = "USER NOT ALLOWED";
+      }
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;                      
+    }
+
     function donorlookup ( $request, $passedData ) { 
 
       $responseCode = 503;  
@@ -379,6 +457,168 @@ THISBAR;
       return $rows;                      
     }
     
+}
+
+class dialogs { 
+
+    public $closeBtn = "<i class=\"material-icons\">close</i>";
+
+
+    /***********************************
+    function dialogtemplate ( $dialogid ) {  
+      $did = generateRandomString(15);
+      $titleBar = "CHTNEastern Donor Vault - Add Donor Record";
+      $closerAction = "closeThisDialog('{$did}')";
+      //$closerAction = "alert('{$did}');";
+      $innerDialog = "ZACK WAS HERE {$did} ";
+      $footerBar = "";      
+      $dialogContent = <<<DIALOGCONTENT
+<table border=0 cellspacing=0 cellpadding=0>
+<tr><td id=systemDialogTitle>{$titleBar}</td><td onclick="{$closerAction}" id=systemDialogClose>{$this->closeBtn}</td></tr>
+<tr><td colspan=2>
+  {$innerDialog}
+</td></tr>
+<tr><td colspan=2>{$footerBar}</td></tr>
+</table>
+DIALOGCONTENT;
+      return array( "dialog" => $dialogContent, "dialogid" => $did, "left" => "15vw", "top" => "15vh", "primeFocus" => "" );
+    }
+    *********************************/
+
+    function createdonor( $dialogid ) {  
+      $did = generateRandomString(15);
+      $titleBar = "CHTNEastern Donor Vault - Add Donor Record";
+      $closerAction = "closeThisDialog('{$did}')";
+
+      $tDte = date('m/d/Y');
+
+      $instdta = json_decode(callrestapi("GET", dataTreeSS . "/global-menu/all-institutions",serverIdent, serverpw,""),true);  
+      if ( (int)$instdta['ITEMSFOUND'] > 0 ) { 
+        //BUILD MENU
+        $proc = "<table border=0 class=menuDropTbl><tr><td align=right onclick=\"fillField('qryProcInst','','');\" class=ddMenuClearOption>[clear]</td></tr>";
+        foreach ($instdta['DATA'] as $procval) { 
+          $proc .= "<tr><td onclick=\"fillField('qryProcInst','{$procval['lookupvalue']}','{$procval['menuvalue']}');\" class=ddMenuItem>{$procval['menuvalue']}</td></tr>";
+        }
+        $proc .= "</table>";
+        $iMenu = "<div class=menuHolderDiv><input type=hidden id=qryProcInstValue><input type=text id=qryProcInst READONLY class=\"inputFld\" style=\"width: 15vw;\"><div class=valueDropDown style=\"min-width: 20vw;\">{$proc}</div></div>";
+      } else { 
+        //TODO: BUILD ERROR
+      }
+
+      $agedta = json_decode(callrestapi("GET", dataTreeSS . "/global-menu/age-uoms",serverIdent, serverpw,""),true);  
+      if ( (int)$agedta['ITEMSFOUND'] > 0 ) { 
+        //BUILD MENU
+        $ageuom = "<table border=0 class=menuDropTbl><tr><td align=right onclick=\"fillField('qryAgeUOM','','');\" class=ddMenuClearOption>[clear]</td></tr>";
+        foreach ($agedta['DATA'] as $aval) { 
+          $ageuom .= "<tr><td onclick=\"fillField('qryAgeUOM','{$aval['lookupvalue']}','{$aval['menuvalue']}');\" class=ddMenuItem>{$aval['menuvalue']}</td></tr>";
+        }
+        $ageuom .= "</table>";
+        $aMenu = "<div class=menuHolderDiv><input type=hidden id=qryAgeUOMValue><input type=text id=qryAgeUOM READONLY class=\"inputFld\" style=\"width: 8vw;\"><div class=valueDropDown style=\"min-width: 15vw;\">{$ageuom}</div></div>";
+      } else { 
+        //TODO: BUILD ERROR
+      }
+
+      $racedta = json_decode(callrestapi("GET", dataTreeSS . "/global-menu/pxi-race",serverIdent, serverpw,""),true);  
+      if ( (int)$racedta['ITEMSFOUND'] > 0 ) { 
+        //BUILD MENU
+        $r = "<table border=0 class=menuDropTbl><tr><td align=right onclick=\"fillField('qryRace','','');\" class=ddMenuClearOption>[clear]</td></tr>";
+        foreach ($racedta['DATA'] as $aval) { 
+          $r .= "<tr><td onclick=\"fillField('qryRace','{$aval['lookupvalue']}','{$aval['menuvalue']}');\" class=ddMenuItem>{$aval['menuvalue']}</td></tr>";
+        }
+        $r .= "</table>";
+        $rMenu = "<div class=menuHolderDiv><input type=hidden id=qryRaceValue><input type=text id=qryRace READONLY class=\"inputFld\"><div class=valueDropDown style=\"min-width: 15vw;\">{$r}</div></div>";
+      } else { 
+        //TODO: BUILD ERROR
+      }
+
+      $sexdta = json_decode(callrestapi("GET", dataTreeSS . "/global-menu/pxi-sex",serverIdent, serverpw,""),true);  
+      if ( (int)$sexdta['ITEMSFOUND'] > 0 ) { 
+        //BUILD MENU
+        $s = "<table border=0 class=menuDropTbl><tr><td align=right onclick=\"fillField('qrySex','','');\" class=ddMenuClearOption>[clear]</td></tr>";
+        foreach ($sexdta['DATA'] as $sval) { 
+          $s .= "<tr><td onclick=\"fillField('qrySex','{$sval['lookupvalue']}','{$sval['menuvalue']}');\" class=ddMenuItem>{$sval['menuvalue']}</td></tr>";
+        }
+        $s .= "</table>";
+        $sMenu = "<div class=menuHolderDiv><input type=hidden id=qrySexValue><input type=text id=qrySex READONLY class=\"inputFld\"><div class=valueDropDown style=\"min-width: 15vw;\">{$s}</div></div>";
+      } else { 
+        //TODO: BUILD ERROR
+      }
+
+      $innerDialog = <<<INNER
+<div>All Fields Are Required</div>
+<div id=donorAddHolder>
+  <div class=elementhold>
+    <div class=elementlbl>Institution</div>
+    <div class=element>{$iMenu}</div>
+  </div>
+  <div class=elementhold>
+    <div class=elementlbl>Schedule Date</div>
+    <div class=element><input type=text id=fldProcDate value="{$tDte}"></div>
+  </div>
+</div>
+
+<div id=donorAddHolderLine2>
+  <div class=elementhold>
+    <div class=elementlbl>First Name</div>
+    <div class=element><input type=text id=fldDnrFName value=""></div>
+  </div>
+  <div class=elementhold>
+    <div class=elementlbl>Last Name</div>
+    <div class=element><input type=text id=fldDnrLName value=""></div>
+  </div>
+  <div class=elementhold>
+    <div class=elementlbl>Medical Record Nbr</div>
+    <div class=element><input type=text id=fldDnrMRN value=""></div>
+  </div>
+</div>
+
+<div id=donorAddHolderLine3>
+  <div class=elementhold>
+    <div class=elementlbl>Age</div>
+    <table border=0 cellspacing=0 cellpadding=0><tr>
+      <td><div class=element><input type=text id=fldDnrAge value="" style="width: 2vw; text-align: right;"></div></td>
+      <td style="padding: 0 0 0 2px;"><div class=element>{$aMenu}</div></td>
+    </tr>
+    </table>
+  </div>
+  <div class=elementhold>
+    <div class=elementlbl>Race</div>
+    <div class=element>{$rMenu}</div>
+  </div>
+  <div class=elementhold>
+    <div class=elementlbl>Sex</div>
+    <div class=element>{$sMenu}</div>
+  </div>
+</div>
+
+<div id=donorAddHolderLine4>
+  <div class=elementhold>
+    <div class=elementlbl>Encounter ID (if applicable)</div>
+    <div class=element><input type=text id=fldPXIID style="width: 100%;"></div>
+  </div>
+</div>
+
+<div align=right>
+  <table><tr><td><div>Save</div></td><td><div>Cancel</div></td></tr></table>
+</div>
+
+INNER;
+
+
+
+      $footerBar = "";      
+      $dialogContent = <<<DIALOGCONTENT
+<table border=0 cellspacing=0 cellpadding=0>
+<tr><td id=systemDialogTitle>{$titleBar}</td><td onclick="{$closerAction}" id=systemDialogClose>{$this->closeBtn}</td></tr>
+<tr><td colspan=2>
+  {$innerDialog}
+</td></tr>
+<tr><td colspan=2>{$footerBar}</td></tr>
+</table>
+DIALOGCONTENT;
+      return array( "dialog" => $dialogContent, "dialogid" => $did, "left" => "15vw", "top" => "15vh", "primeFocus" => "" );
+    }
+
 }
 
 class systemposts {
@@ -590,8 +830,14 @@ class javascriptr {
 
     $tt = treeTop;
     $dtaTree = dataTree . "/data-doers/";
+    $dtaGTree = dataTreeSS;
     $regUsr = session_id();
     $regCode = dvRegisterServerIdent ( $regUsr );
+
+    $si = serverIdent; 
+    $sp = serverpw;
+
+
     $rtnThis = <<<JAVASCR
 
 window.addEventListener("unload", logData, false);
@@ -603,6 +849,7 @@ function logData() {
 var byId = function( id ) { return document.getElementById( id ); };
 var treeTop = "{$tt}";
 var dataPath = "{$dtaTree}";
+var dataGPath = "{$dtaGTree}";
 var mousex;
 var mousey;
 
@@ -631,6 +878,7 @@ function universalAJAX(methd, url, passedDataJSON, callbackfunc, dspBacker) {
   }
   var rtn = new Object();
   var grandurl = dataPath+url;
+  //console.log( grandurl );
   httpage.open(methd, grandurl, true);
   httpage.setRequestHeader("Authorization","Basic " + btoa("{$regUsr}:{$regCode}"));
   httpage.onreadystatechange = function() {
@@ -701,10 +949,72 @@ function fillField( whichfieldId, whatvalue, whatdsp ) {
   }
   switch ( whichfieldId ) { 
     case 'cDoc':
-      alert('Change Questions: (id: '+whatvalue+')');
+      byId('consentquestions').innerHTML = "";
+      var pdta = new Object();  
+      pdta['consentid'] = whatvalue;
+      var passdata = JSON.stringify(pdta);
+      universalAJAX("POST", "consent-doc-questions", passdata, chngConsentQuestions, 1);
     break;
-
   }
+}
+
+function chngConsentQuestions ( rtnData ) {
+
+  if (parseInt(rtnData['responseCode']) !== 200) { 
+    var msgs = JSON.parse(rtnData['responseText']);
+    var dspMsg = ""; 
+    msgs['MESSAGE'].forEach(function(element) { 
+       dspMsg += "\\n - "+element;
+    });
+    alert("ERROR:\\n"+dspMsg);
+    byId('standardModalBacker').style.display = 'none';    
+   } else {
+     
+     var dta = JSON.parse( rtnData['responseText'] ); 
+
+     byId('consentquestions').innerHTML = dta['DATA'];
+   }
+
+}
+
+
+function generateDialog ( whichdialog ) { 
+  var pdta = new Object();  
+  pdta['dialog'] = whichdialog;
+  var passdata = JSON.stringify(pdta);
+  universalAJAX("POST", "generate-dialog",passdata, dspDialog, 1);
+}
+
+function dspDialog( rtnData ) { 
+  if (parseInt(rtnData['responseCode']) !== 200) { 
+    var msgs = JSON.parse(rtnData['responseText']);
+    var dspMsg = ""; 
+    msgs['MESSAGE'].forEach(function(element) { 
+       dspMsg += "\\n - "+element;
+    });
+    alert("ERROR:\\n"+dspMsg);
+    byId('standardModalBacker').style.display = 'none';    
+   } else {
+        var dta = JSON.parse(rtnData['responseText']);         
+        //TODO: MAKE SURE ALL ELEMENTS EXIST BEFORE CREATION
+        var d = document.createElement('div');
+        d.setAttribute("id", dta['DATA']['dialogID']); 
+        d.setAttribute("class","floatingDiv");
+        d.style.left = dta['DATA']['left'];
+        d.style.top = dta['DATA']['top'];
+        d.innerHTML = dta['DATA']['pageElement']; 
+        document.body.appendChild(d);
+        byId(dta['DATA']['dialogID']).style.display = 'block';
+        if ( dta['DATA']['primeFocus'].trim() !== "" ) { 
+          byId(dta['DATA']['primeFocus'].trim()).focus();
+        }
+        byId('standardModalBacker').style.display = 'block';
+  }
+}
+
+function closeThisDialog(dlog) {
+   byId(dlog).parentNode.removeChild(byId(dlog));
+   byId('standardModalBacker').style.display = 'none';
 }
 
 JAVASCR;
@@ -720,12 +1030,11 @@ document.addEventListener('DOMContentLoaded', function() {
 }, false);
 
 function dspRetrievedPRs ( rtnData ) {
-  console.log( rtnData );
   var r = JSON.parse(rtnData['responseText']);
   if ( parseInt(r['RESPONSECODE']) !== 200 ) {
     var msg = r['MESSAGE'];
     var dspMsg = "";
-   msg.forEach(function(element) {
+    msg.forEach(function(element) {
       dspMsg += "\\n - "+element;
     });
     if ( byId('dataDsp') ) {
@@ -850,6 +1159,53 @@ function doLogin() {
 JAVASCR;
     return $rtnThis;
   }
+
+  function consentwatch ( $rqststr ) { 
+    $tt = treeTop;
+    $eMod = eModulus;
+    $eExpo = eExponent;
+    $fldDFName = cryptservice('fldDonorFName','e');
+    $fldDLName = cryptservice('fldDonorLName','e');
+    $fldCHTNList = cryptservice('fldCHTNList','e');
+    $fldIFName = cryptservice('fldIFName','e');
+    $fldILName = cryptservice('fldILName','e');
+    $fldProcDte = cryptservice('fldProcDte','e');
+
+    $rtnThis = <<<JAVASCR
+var key;
+function bodyLoad() {
+  setMaxDigits(262);
+  key = new RSAKeyPair("{$eExpo}","{$eExpo}","{$eMod}", 2048);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  bodyLoad();
+  if ( byId('fldDonorFName') ) { 
+    byId('fldDonorFName').focus();
+  }
+}, false);
+
+
+function consentcancel() { 
+  location.reload(true);
+}
+
+function consentwatchsave() { 
+  var pdta = new Object();  
+  pdta['{$fldDFName}'] = window.btoa( encryptedString ( key, byId('fldDonorFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDLName}'] = window.btoa( encryptedString ( key, byId('fldDonorLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldCHTNList}'] = window.btoa( encryptedString ( key, byId('fldCHTNList').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldIFName}'] = window.btoa( encryptedString ( key, byId('fldIFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldILName}'] = window.btoa( encryptedString ( key, byId('fldILName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldProcDte}'] = window.btoa( encryptedString ( key, byId('fldProcDte').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+
+  console.log( JSON.stringify( pdta ) );
+}
+
+JAVASCR;
+    return $rtnThis;
+  }
+
 
   function donorlookup ( $rqststr ) {
     $tt = treeTop;
@@ -1053,7 +1409,7 @@ PGCONTENT;
               $chk .= <<<THISBAR
               <div id=prLocalBBar>
                 <div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">send</i></div><div class=popupToolTip>Send Donor to today's schedule</div></div>
-                <div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">create</i></div><div class=popupToolTip>Create New Donor Record</div></div>
+                <div class=buttonContainer onclick="generateDialog('create-donor');"><div class=controlBarButton><i class="material-icons">create</i></div><div class=popupToolTip>Create New Donor Record</div></div>
               </div>
 THISBAR;
             }
@@ -1102,54 +1458,120 @@ PGCONTENT;
 
   function consentwatch ( $rqst, $usr ) {
 
-      //"RESPONSECODE":200,"MESSAGE":[],"ITEMSFOUND":2,"DATA":[{"menuvalue":"819","dspvalue":"CHTNEastern Consent","useasdefault":1},{"menuvalue":"820","dspvalue":"Other Consent Document","useasdefault":0}]} 
-      $rsltdta = callrestapi("POST", dataTreeSS . "/data-doers/vault-consent-document-listing",serverIdent, serverpw, $passedData);          
+      $rsltdta = callrestapi("POST", dataTreeSS . "/data-doers/vault-consent-document-listing",serverIdent, serverpw, $passedData);   
       $dta = json_decode($rsltdta, true);
       if ( (int)$dta['RESPONSECODE'] === 200 ) { 
           //BUILD MENU
         $cdocdftdsp = "";
         $cdocdftval = "";
-        $cDocMnu = "<table>";
+        $cDocMnu = "<table border=0 class=menuDropTbl>";
         foreach ( $dta['DATA'] as $k => $v ) {  
           if ( (int)$v['useasdefault'] === 1 ) {
             $cdocdftdsp = $v['dspvalue'];
             $cdocdftval = $v['menuvalue'];
           }
-          $cDocMnu .= "<tr><td onclick=\"fillField('cDoc',{$v['menuvalue']},'{$v['dspvalue']}');\">{$v['dspvalue']}</td></tr>";
+          $cDocMnu .= "<tr><td onclick=\"fillField('cDoc',{$v['menuvalue']},'{$v['dspvalue']}');\" class=ddMenuItem>{$v['dspvalue']}</td></tr>";
         }
         $cDocMnu .= "</table>";
       } else { 
         $cDocMnu = "ERROR:  Error in Retreiving Listing";
       }
 
+      $racedta = json_decode(callrestapi("GET", dataTreeSS . "/global-menu/pxi-race",serverIdent, serverpw,""),true);  
+      if ( (int)$racedta['ITEMSFOUND'] > 0 ) { 
+        //BUILD MENU
+        $r = "<table border=0 class=menuDropTbl><tr><td align=right onclick=\"fillField('qryRace','','');\" class=ddMenuClearOption>[clear]</td></tr>";
+        foreach ($racedta['DATA'] as $aval) { 
+          $r .= "<tr><td onclick=\"fillField('qryRace','{$aval['lookupvalue']}','{$aval['menuvalue']}');\" class=ddMenuItem>{$aval['menuvalue']}</td></tr>";
+        }
+        $r .= "</table>";
+        $rMenu = "<div class=menuHolderDiv><input type=hidden id=qryRaceValue><input type=text id=qryRace READONLY class=\"inputFld\"><div class=valueDropDown style=\"min-width: 15vw;\">{$r}</div></div>";
+      } else { 
+        //TODO: BUILD ERROR
+      }
+
+      $sexdta = json_decode(callrestapi("GET", dataTreeSS . "/global-menu/pxi-sex",serverIdent, serverpw,""),true);  
+      if ( (int)$sexdta['ITEMSFOUND'] > 0 ) { 
+        //BUILD MENU
+        $s = "<table border=0 class=menuDropTbl><tr><td align=right onclick=\"fillField('qrySex','','');\" class=ddMenuClearOption>[clear]</td></tr>";
+        foreach ($sexdta['DATA'] as $sval) { 
+          $s .= "<tr><td onclick=\"fillField('qrySex','{$sval['lookupvalue']}','{$sval['menuvalue']}');\" class=ddMenuItem>{$sval['menuvalue']}</td></tr>";
+        }
+        $s .= "</table>";
+        $sMenu = "<div class=menuHolderDiv><input type=hidden id=qrySexValue><input type=text id=qrySex READONLY class=\"inputFld\"><div class=valueDropDown style=\"min-width: 15vw;\">{$s}</div></div>";
+      } else { 
+        //TODO: BUILD ERROR
+      }
 
 
+      $consentQList = "";
+      if ( trim($cdocdftval) !== "" && is_numeric($cdocdftval) ) { 
+        $cqDta = json_decode(callrestapi("GET", dataTreeSS . "/vault-consent-doc-questions/" . (int)$cdocdftval, serverIdent, serverpw, ""), true); 
+        if ( (int)$cqDta['ITEMSFOUND'] > 0 ) { 
+            foreach ( $cqDta['DATA'] as $cqk => $cqv ) { 
+
+              switch ( $cqv['additionalInformation'] ) { 
+                case "YN":
+                  $ynMnu = "<table border=0 class=menuDropTbl>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',1,'Yes');\" class=ddMenuItem>Yes</td></tr>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',0,'No');\" class=ddMenuItem>No</td></tr>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}',3,'illegible/No Specified');\" class=ddMenuItem>illegible/No Specified</td></tr>";
+                  $ynMnu .= "</table>";
+
+                  $ansElemt = "<div><div class=elementmenu> <div class=elemental><input type=hidden id=\"ans{$cqv['mennuvalue']}Value\" value=\"\"><input type=text id=\"ans{$cqv['menuvalue']}\" value=\"\" style=\"width: 8vw;\"><div class=optionlisting style=\"width: 8vw;\">{$ynMnu}</div></div></div></div>";  
+                  break;
+                case "TXD":
+                  $ansElemt = "<div><input type=\"text\" id=\"ans{$cqv['menuvalue']}\" style=\"width: 8vw;\"></div>";  
+                  break;
+                default:
+                $ansElemt = "<div>&nbsp;</div>";  
+              }         
+              $consentQList .= "<div class=cqLine id='{$cqv['menuvalue']}'><div class=cqQstn>{$cqv['dspvalue']}</div>{$ansElemt}</div>";
+            }
+        }
+      }
 
     $uploadside = <<<UPLOADSIDE
-<div>Upload Consent Form</div>
+<div id=cwTitle>Upload Consent Form</div>
+<div id=cwDirections>Fill out the form below.  This will add the donor to the 'Consent Watch List' unless you list CHTN Biogroup Numbers.  If you list CHTN Numbers, those numbers will be marked 'Informed Consent YES' in the ScienceServer Database.  </div>
 <p>
-<div>Donor Information</div>
+<div class=cwSectionHeader>Donor Information</div>
 <div id=elementlineOne>
-  <div class=element><div class=elementLabel>Donor First Name</div><div class=elemental><input type=text></div></div>
-  <div class=element><div class=elementLabel>Donor Last Name</div><div class=elemental><input type=text></div></div>
-  <div class=elementwithbtn><div class=elementLabel>CHTN #</div><div class=elementbtn><i class="material-icons">search</i></div><div class=elemental><input type=text></div></div>
+  <div class=element><div class=elementLabel>Donor First Name</div><div class=elemental><input type=text id=fldDonorFName></div></div>
+  <div class=element><div class=elementLabel>Donor Last Name</div><div class=elemental><input type=text id=fldDonorLName></div></div>
+  <div class=elementwithbtn><div class=elementLabel>CHTN # (Comma seperated)</div><div class=elemental><input type=text id=fldCHTNList></div></div>
+</div>
+<div id=elementlineFour>
+  <div class=element><div class=elementLabel>Donor Age</div><div class=elemental><input type=text id=fldDonorAge style="text-align: right;"></div><div style="font-size: .8vh;">(Format: Integer Value Only)</div></div>
+  <div class=element><div class=elementLabel>Donor Race</div><div class=elemental>{$rMenu}</div></div>
+  <div class=element><div class=elementLabel>Donor Sex</div><div class=elemental>{$sMenu}</div></div>
 </div>
 <p>
-<div>Surgeon/Investigator</div>
+<div class=cwSectionHeader>Surgeon/Investigator</div>
 <div id=elementlineTwo>
-  <div class=element><div class=elementLabel>First Name</div><div class=elemental><input type=text></div></div>
-  <div class=element><div class=elementLabel>Last Name</div><div class=elemental><input type=text></div></div>
-  <div class=element><div class=elementLabel>Anticipated Date (mm/dd/YYY)</div><div class=elemental><input type=text></div></div>
+  <div class=element><div class=elementLabel>First Name</div><div class=elemental><input type=text id=fldIFName></div></div>
+  <div class=element><div class=elementLabel>Last Name</div><div class=elemental><input type=text id=fldILName></div></div>
+  <div class=element><div class=elementLabel>Anticipated Procedure Date</div><div class=elemental><input type=text id=fldProcDte></div><div style="font-size: .8vh;">(Format: mm/dd/yyyy)</div></div>
 </div>
 <p>
-<div>Document Metrics</div>
+<div class=cwSectionHeader>Document Metrics</div>
 <div id=elementlineThree>
   <div class=elementmenu>
     <div class=elementLabel>Consent Document</div>
     <div class=elemental><input type=hidden id=cDocVal value={$cdocdftval}><input type=text id=cDoc value="{$cdocdftdsp}"></div>
-    <div class=optionlisting style="width: 12vw;">{$cDocMnu}</div>
+    <div class=optionlisting style="width: 30vw;">{$cDocMnu}</div>
   </div>
-  <div id=consentquestions>CONSENT QUESTIONS GO HERE</div>
+  <div id=consentquestions>{$consentQList}</div>
+</div>
+<p>
+<div class=cwSectionHeader>Upload File</div>
+<div>
+  <div>Choose a File</div>
+  <div><input type="file" name="file" id="file" class="inputfile" /></div>
+</div>
+
+<div align=right style="width: 30vw;">
+<table><tr><td> <button id=btnConsentSave onclick="consentwatchsave();">Save</button> </td><td> <button id=btnConsentCancel onclick="consentcancel();">Cancel</button> </td></tr></table>
 </div>
 
 UPLOADSIDE;
@@ -1297,7 +1719,6 @@ body { margin: 0; padding-left: 4vw;  }
 .buttonContainer .controlBarButtonExit .material-icons { font-size: 3vh; }
 .buttonContainer .controlBarButton .material-icons { font-size: 3vh; }
 
-
 .popupToolTip { display: none; position: absolute; top: 0; left: 3.4vw; z-index: 31; white-space: nowrap; background: #88b7d5; border: 3px solid #c2e1f5; font-size: 1.4vh; color: rgba({$this->color_dblue},1); padding: .7vh .2vw;  }
 .popupToolTip:after, .popupToolTip:before { right: 100%; top: 50%; border: solid transparent; content: " "; height: 0; width: 0; position: absolute; pointer-events: none;  }
 .popupToolTip:after { border-color: rgba(136, 183, 213, 0); border-right-color: #88b7d5; border-width: 1vh; margin-top: -1vh; }
@@ -1308,10 +1729,35 @@ body { margin: 0; padding-left: 4vw;  }
 
 
 #standardModalBacker { position: fixed; top: 0; left: 0;  z-index: 100; background: rgba({$this->color_zackgrey},.7); height: 100vh; width: 100vw; display: none; }
+input { font-size: 1.2vh; padding: 8px 4px 8px 4px; border: 1px solid rgba({$this->color_zackgrey},1); }
+input:focus, input:active { background: rgba({$this->color_lamber},.5); border: 1px solid rgba({$this->color_dblue},.5);  outline: none;  }
 
-input:focus, input:active {background: rgba({$this->color_lamber},.5); border: 1px solid rgba({$this->color_dblue},.5);  outline: none;  }
+.floatingDiv {  z-index: 101;  background: rgba({$this->color_white},1); border: 1px solid rgba({$this->color_zackgrey},1); position: fixed; padding: 2px; top: 150px ; left: 150px;  }
 
 
+#systemDialogClose { width: .5vw; background: rgba({$this->color_zackgrey},1); color: rgba({$this->color_white},1); font-size: 2vh;text-align: right; padding: .3vh .1vw; }
+#systemDialogClose:hover {cursor: pointer; color: rgba({$this->color_bred},1); }
+
+#systemDialogTitle { background: rgba({$this->color_zackgrey},1); color: rgba({$this->color_white},1); font-size: 1.3vh; padding: .3vh .3vw; }
+
+/* DROP DOWN TABLES */
+.menuHolderDiv { position: relative; }
+.menuHolderDiv:hover .valueDropDown { display: block; cursor: pointer; }
+.valueDropDown {background: rgba({$this->color_white},1);position: absolute; border: 1px solid rgba({$this->color_zackgrey},1); box-sizing: border-box; margin-top: .07vh; min-height: 15vh; max-height: 33vh; overflow: auto; display: none; z-index: 25; }
+.menuDropTbl { font-size: 1.3vh; padding: .6vh .1vw .6vh .1vw; white-space: nowrap; background: rgba({$this->color_white},1); width: 100%; }
+
+.inputiconcontainer { position: relative; }
+.inputmenuiconholder { position: absolute; top: 0; left: 0; width: 100%; height: 100%; text-align: right; padding: 9px 6px; box-sizing: border-box; }
+.menuDropIndicator { font-size: 2vh; color: rgba({$this->color_grey},1); }
+.menuHolderDiv:hover .menuDropIndicator { color: rgba({$this->color_cornflowerblue},1); }
+
+.valueDisplayHolder { position: relative; } 
+.valueDisplayDiv { background: rgba({$this->color_white},1);position: absolute; border: 1px solid rgba({$this->color_zackgrey},1); box-sizing: border-box; margin-top: .1vh; min-height: 15vh; max-height: 33vh; overflow: auto; display: none; z-index: 25; }
+
+.ddMenuItem {padding: .3vh .2vw;}
+.ddMenuItem:hover { cursor: pointer;  background: rgba({$this->color_lblue},1); color: rgba({$this->color_white},1);  }
+.ddMenuClearOption { font-size: 1.1vh; }
+.ddMenuClearOption:hover {color: rgba({$this->color_bred},1); }
 
 STYLESHEET;
     return $rtnThis;
@@ -1319,14 +1765,19 @@ STYLESHEET;
 
   function consentwatch() { 
     $rtnThis = <<<stylesheets
-#pgHolder { display: grid; grid-template-columns: 2fr 1fr; }
+#pgHolder { display: grid; grid-template-columns: 35vw 2fr; }
 
-#consentDspSide { border-left: 1px solid rgba({$this->color_zackgrey},1); }  
+#uploadSide { width: 35vw; } 
+#cwTitle { width: 30vw; text-align: center; font-size: 1.8vh; padding: 1vh 0 .3vh 0; font-weight: bold; border-bottom: 1px solid rgba({$this->color_dblue},1); color: rgba({$this->color_dblue},1);  }
+#cwDirections { font-size: 1.3vh; text-align: justify; width: 30vw;  }
+.cwSectionHeader { font-size: 1.6vh; width: 30vw; background: rgba({$this->color_cornflowerblue}, .6); color: rgba({$this->color_white}, 1); padding: .4vh 0 .4vh .2vw; border: 1px solid rgba({$this->color_dblue},1);  } 
 
-input { font-size: 1.5vh; padding: 8px 4px 8px 4px; border: 1px solid rgba({$this->color_zackgrey},1); }
 
-#elementlineOne { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 38vw; }
-#elementlineTwo { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 38vw; }
+#elementlineOne { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 30vw; }
+#elementlineTwo { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 30vw; }
+#elementlineFour { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); width: 30vw; }
+
+.elementLabel { padding: .8vh 0 0 0; font-size: 1vh; font-weight: bold;    } 
 
 .elementwithbtn { display: grid; grid-template-columns: 2fr 1fr; }
 .elementwithbtn .elementLabel { grid-column: 1 / 2; grid-row: 1; } 
@@ -1334,12 +1785,24 @@ input { font-size: 1.5vh; padding: 8px 4px 8px 4px; border: 1px solid rgba({$thi
 .elementwithbtn .elemental { grid-row: 2; } 
 
 
+#elementlineThree { width: 30vw; }
+#cDoc { width: 30vw; } 
+
+
 .elementmenu { position: relative; }
 
 .elementmenu:hover .optionlisting { display: block; } 
 .optionlisting { border: 1px solid rgba({$this->color_zackgrey},1); box-sizing: border-box; height: 8vh; margin-top: 1px; overflow-y: auto; overflow-x: hidden; display: none; position: absolute; z-index: 10; background: rgba({$this->color_white},1);  } 
 
-#consentquestions { width: 24vw; height: 10vh; margin-top: 1vh;  border: 1px solid rgba({$this->color_zackgrey},.5); } 
+#consentquestions { width: 30vw; height: 20vh; margin-top: 1vh;  border: 1px solid rgba({$this->color_zackgrey},.1); overflow: auto; } 
+
+
+#consentDspSide { border-left: 1px solid rgba({$this->color_zackgrey},1); }  
+
+.cqLine { display: grid; grid-template-columns: 2fr 1fr; width: 29vw; margin-top: .2vh; }
+.cqQstn { padding: .5vh 0 .5vh .3vw; } 
+.cqLine:nth-child(even) { background: rgba({$this->color_grey},.4); } 
+.cqQstn { font-size: 1.2vh; color: rgba({$this->color_zackgrey},1); } 
 
 stylesheets;
     return $rtnThis;
@@ -1376,6 +1839,16 @@ stylesheets;
 #donorDataDsp tbody tr td { border-bottom: 1px solid rgba({$this->color_zackgrey},1); border-right: 1px solid rgba({$this->color_zackgrey},1); padding: 8px 4px; }
 
 #prLocalBBar {  position: fixed; z-index: 28; top: 16vh; left: 3.5vw; }
+
+
+#donorAddHolder { display: grid; grid-template-columns: repeat( 2, 1fr ); grid-gap: 3px; }
+#donorAddHolderLine2 { display: grid; grid-template-columns: repeat( 3, 1fr ); grid-gap: 3px; }
+#donorAddHolderLine3 { display: grid; grid-template-columns: repeat( 3, 1fr ); grid-gap: 3px; }
+
+.elementhold { padding: .5vh .2vw; }
+.elementlbl { font-size: 1.3vh; color: rgba({$this->color_zackgrey},1);  }  
+.element input { width: 10vw; } 
+
 
 stylesheets;
     return $rtnThis;
