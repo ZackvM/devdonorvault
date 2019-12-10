@@ -426,6 +426,65 @@ class datadoers {
       return $rows;                      
     } 
 
+    function savenewdonor ( $request, $passedData ) { 
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      $errorInd = 0;
+      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
+      if ( (int)$vuser->responsecode === 200 ) { 
+        require( serverkeys . '/sspdo.zck');
+        $pdta = json_decode( $passedData, true); 
+        //{"nwdInstitution":"Hospital of The University of Pennsylvania","nwdProcDte":"12\/10\/2019","nwdFName":"Shawn","nwdLName":"Yakobina","nwdMRN":"234234234","nwdAge":"43","nwdAgeUOM":"Years","nwdRace":"White","nwdSex":"Male","nwdProcNote":"TEST TEST","nwdEncounterId":"912012-0293023-0992832","nwdDialogId":"sh3SN7TDnwdCFOZ"}
+        foreach ( $pdta as $k => $v ) {
+          $locArr[cryptservice( $k, 'd')] = chtndecrypt($v);  
+        }
+
+        ( !array_key_exists('nwdInstitution', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdInstitution' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdProcDte', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdProcDte' DOES NOT EXIST.")) : "";
+        ( !array_key_exists('nwdFName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdFName' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdLName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdLName' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdMRN', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdMRN' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdAge', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdAge' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdAgeUOM', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdAgeUOM' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdRace', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdRace' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdSex', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdSex' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdProcNote', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdProcNote' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdEncounterId', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdEncounterId' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('nwdDialogId', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'nwdDialogId' DOES NOT EXIST.")) : ""; 
+
+        if ( $errorInd === 0 ) { 
+          //Continue
+          ( trim($locArr['nwdInstitution']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify an institution (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdProcDte']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify a Procedure/Schedule Date (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdFName']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify the Donor's First Name (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdLName']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify the Donor's Last Name (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdMRN']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify the donor's Medical Record Number (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdAge']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify the Donor's Age (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdAgeUOM']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify a Unit of Measure (UOM) for the age field (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdRace']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify the Donor's Race (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdSex']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "You must specify the Donor's Sex (All fields denoted with * are required)")) : "";
+          ( trim($locArr['nwdDialogId']) === "" )  ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  The Dialog Id is Blank")) : "";
+
+          if ( $errorInd === 0 ) {
+              //CONTINUE
+
+             ( !ssValidateDate( $locArr['nwdProcDte'], 'm/d/Y') )  ? (list( $errorInd, $msgArr[] ) = array(1 , "Procedure/Schedule Date ({$locArr['nwdProcDte']}) is not valid!")) : ""; 
+
+
+              if ( $errorInd === 0 ) {
+                $msgArr[] = $locArr['nwdInstitution'];
+              }
+          }
+        }
+      } else { 
+        $msgArr[] = "USER NOT ALLOWED";
+      }
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;                      
+    }
+
     function retrievependingprlisting( $request, $passedData ) { 
         
       require( serverkeys . '/sspdo.zck');
@@ -528,7 +587,7 @@ DIALOGCONTENT;
     }
     *********************************/
 
-    function createdonor( $dialogid ) {  
+    function createdonor( ) {  
       $did = generateRandomString(15);
       $titleBar = "CHTNEastern Donor Vault - Add Donor Record";
       $closerAction = "closeThisDialog('{$did}')";
@@ -540,7 +599,7 @@ DIALOGCONTENT;
         //BUILD MENU
         $proc = "<table border=0 class=menuDropTbl><tr><td align=right onclick=\"fillField('qryProcInst','','');\" class=ddMenuClearOption>[clear]</td></tr>";
         foreach ($instdta['DATA'] as $procval) { 
-          $proc .= "<tr><td onclick=\"fillField('qryProcInst','{$procval['lookupvalue']}','{$procval['menuvalue']}');\" class=ddMenuItem>{$procval['menuvalue']}</td></tr>";
+          $proc .= "<tr><td onclick=\"fillField('qryProcInst','{$procval['lookupvalue']}','{$procval['menuvalue']}');\" class=ddMenuItem>{$procval['menuvalue']} {$procval['lookupvalue']}</td></tr>";
         }
         $proc .= "</table>";
         $iMenu = "<div class=menuHolderDiv><input type=hidden id=qryProcInstValue><input type=text id=qryProcInst READONLY class=\"inputFld\" style=\"width: 15vw;\"><div class=valueDropDown style=\"min-width: 20vw;\">{$proc}</div></div>";
@@ -588,36 +647,36 @@ DIALOGCONTENT;
       }
 
       $innerDialog = <<<INNER
-<div>All Fields Are Required</div>
+<div id=instructionHeader>All Fields Marked with an * Are Required</div>
 <div id=donorAddHolder>
   <div class=elementhold>
-    <div class=elementlbl>Institution</div>
+    <div class=elementlbl>Institution <span class=rqrd>*</span></div>
     <div class=element>{$iMenu}</div>
   </div>
   <div class=elementhold>
-    <div class=elementlbl>Schedule Date</div>
+    <div class=elementlbl>Procedure/Schedule Date <span class=rqrd>*</span></div>
     <div class=element><input type=text id=fldProcDate value="{$tDte}"></div>
   </div>
 </div>
 
 <div id=donorAddHolderLine2>
   <div class=elementhold>
-    <div class=elementlbl>First Name</div>
+    <div class=elementlbl>First Name <span class=rqrd>*</span></div>
     <div class=element><input type=text id=fldDnrFName value=""></div>
   </div>
   <div class=elementhold>
-    <div class=elementlbl>Last Name</div>
+    <div class=elementlbl>Last Name <span class=rqrd>*</span></div>
     <div class=element><input type=text id=fldDnrLName value=""></div>
   </div>
   <div class=elementhold>
-    <div class=elementlbl>Medical Record Nbr</div>
+    <div class=elementlbl>Medical Record Nbr <span class=rqrd>*</span></div>
     <div class=element><input type=text id=fldDnrMRN value=""></div>
   </div>
 </div>
 
 <div id=donorAddHolderLine3>
   <div class=elementhold>
-    <div class=elementlbl>Age</div>
+    <div class=elementlbl>Age <span class=rqrd>*</span></div>
     <table border=0 cellspacing=0 cellpadding=0><tr>
       <td><div class=element><input type=text id=fldDnrAge value="" style="width: 2vw; text-align: right;"></div></td>
       <td style="padding: 0 0 0 2px;"><div class=element>{$aMenu}</div></td>
@@ -625,24 +684,33 @@ DIALOGCONTENT;
     </table>
   </div>
   <div class=elementhold>
-    <div class=elementlbl>Race</div>
+    <div class=elementlbl>Race <span class=rqrd>*</span></div>
     <div class=element>{$rMenu}</div>
   </div>
   <div class=elementhold>
-    <div class=elementlbl>Sex</div>
+    <div class=elementlbl>Sex <span class=rqrd>*</span></div>
     <div class=element>{$sMenu}</div>
+  </div>
+</div>
+
+<div id=donorAddHolderLine5>
+  <div class=elementhold>
+    <div class=elementlbl>Procedure Notes</div>
+    <div class=element><input type=text id=fldProcNote style="width: 100%;"></div>
   </div>
 </div>
 
 <div id=donorAddHolderLine4>
   <div class=elementhold>
-    <div class=elementlbl>Encounter ID (if applicable)</div>
+    <div class=elementlbl>Encounter ID</div>
     <div class=element><input type=text id=fldPXIID style="width: 100%;"></div>
   </div>
 </div>
 
-<div align=right>
-  <table><tr><td><div>Save</div></td><td><div>Cancel</div></td></tr></table>
+<input type=hidden id=dialogIdentifier value="{$did}">
+
+<div align=right id=buttonHolder>
+  <table><tr><td><button onclick="saveNewDonor();">Save</button></td><td><button onclick="{$closerAction}">Cancel</button></td></tr></table>
 </div>
 
 INNER;
@@ -985,6 +1053,9 @@ function navigateSite(whichURL) {
 
 function fillField( whichfieldId, whatvalue, whatdsp ) { 
   if ( byId(whichfieldId) ) { 
+    if ( byId(whichfieldId+'Value') ) { 
+      byId(whichfieldId+'Value').value = whatvalue;
+    }
     if ( byId(whichfieldId+'Val') ) { 
       byId(whichfieldId+'Val').value = whatvalue;
     }
@@ -1291,6 +1362,19 @@ JAVASCR;
     $fldORDte = cryptservice('fldORDte','e');
     $fldCHTNNbr = cryptservice('fldCHTNNbr','e');
 
+    $nwdInstitution = cryptservice('nwdInstitution','e');
+    $nwdProcDte = cryptservice('nwdProcDte','e');
+    $nwdFName = cryptservice('nwdFName','e');
+    $nwdLName = cryptservice('nwdLName','e');
+    $nwdMRN = cryptservice('nwdMRN','e');
+    $nwdAge = cryptservice('nwdAge','e');
+    $nwdAgeUOM = cryptservice('nwdAgeUOM','e');
+    $nwdRace = cryptservice('nwdRace','e');
+    $nwdSex = cryptservice('nwdSex','e');
+    $nwdProcNote = cryptservice('nwdProcNote','e');
+    $nwdEncounterId = cryptservice('nwdEncounterId','e');
+    $nwdDialogId = cryptservice('nwdDialogId','e');
+
     $rtnThis = <<<JAVASCR
 
     var key;
@@ -1308,6 +1392,39 @@ JAVASCR;
       }
 
     }, false);
+    
+  function saveNewDonor() { 
+    var pdta = new Object();  
+    pdta['{$nwdInstitution}'] = window.btoa(encryptedString(key, byId('qryProcInstValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdProcDte}'] = window.btoa(encryptedString(key, byId('fldProcDate').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdFName}'] = window.btoa(encryptedString(key, byId('fldDnrFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdLName}'] = window.btoa(encryptedString(key, byId('fldDnrLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdMRN}'] = window.btoa(encryptedString(key, byId('fldDnrMRN').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdAge}'] = window.btoa(encryptedString(key, byId('fldDnrAge').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdAgeUOM}'] = window.btoa(encryptedString(key, byId('qryAgeUOM').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdRace}'] = window.btoa(encryptedString(key, byId('qryRace').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdSex}'] = window.btoa(encryptedString(key, byId('qrySex').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdProcNote}'] = window.btoa(encryptedString(key, byId('fldProcNote').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdEncounterId}'] = window.btoa(encryptedString(key, byId('fldPXIID').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    pdta['{$nwdDialogId}'] = window.btoa(encryptedString(key, byId('dialogIdentifier').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding));
+    var passdata = JSON.stringify(pdta);
+    universalAJAX("POST", "save-new-donor", passdata, savedonorcomplete, 2);
+  }
+
+  function savedonorcomplete( rtnData ) { 
+      console.log ( rtnData )
+      var r = JSON.parse(rtnData['responseText']);
+      if ( parseInt(r['RESPONSECODE']) !== 200 ) {
+        var msg = r['MESSAGE'];
+        var dspMsg = "";
+        msg.forEach(function(element) {
+          dspMsg += "\\n - "+element;
+        });
+        alert(dspMsg);
+      } else {
+        //navigateSite('donor-lookup/'+r['DATA']); 
+      }
+  }
 
     function sendSrchRqst() {
       var pdta = new Object();  
@@ -1344,6 +1461,8 @@ JAVASCR;
         byId( whichrow ).dataset.selected = "true";
       }
     }
+
+
 JAVASCR;
     return $rtnThis;
   }
@@ -1409,7 +1528,6 @@ PGCONTENT;
       if ( $rs->rowCount() < 1 ) { 
         $rdsp = "<div id=datadspdiv>FATAL ERROR:  NO SEARCH ID FOUND IN DATABASE.</div>";
       } else {
-        //{"responsecode":200,"userguid":"7869c5ad-be9f-4a29-9091-d0acbe20bdeb","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""} == {"reqby":"{\"responsecode\":200,\"userguid\":\"7869c5ad-be9f-4a29-9091-d0acbe20bdeb\",\"userid\":\"zacheryv@mail.med.upenn.edu\",\"friendlyname\":\"Zack\",\"oaccount\":\"proczack\",\"accesslevel\":\"ADMINISTRATOR\",\"accessnbr\":43,\"holder\":\"\"}","srchrequests":"{\"fldFName\":\"zach\",\"fldLName\":\"von \",\"fldMRN\":\"\",\"fldORDte\":\"\",\"fldCHTNNbr\":\"\"}"} 
         $s = $rs->fetch(PDO::FETCH_ASSOC);
         $rqstr = json_decode($s['reqby'], true);
         $rq = json_decode($s['srchrequests'], true);
@@ -1460,7 +1578,7 @@ PGCONTENT;
             $rs = $conn->prepare($sql);
             $rs->execute($varr);  
             if ( $rs->rowCount() < 1 ) { 
-              $chk = "NO DONOR INFORMATION FOUND MATCHING YOUR QUERY PARAMETERS";
+                $chk = "<div id=prLocalBBar><div class=buttonContainer onclick=\"generateDialog('create-donor');\"><div class=controlBarButton><i class=\"material-icons\">create</i></div><div class=popupToolTip>Create New Donor Record</div></div></div>NO DONOR INFORMATION FOUND MATCHING YOUR QUERY PARAMETERS";
             } else { 
                 $chk = "<div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>";
                 $chk .= "<table border=0 id=donorDataDsp><tr><td colspan=9 id=headerLine>Donors Found: " . $rs->rowCount() . "</td></tr><tr><th>Schedule<br>Date</th><th>Schedule<br>Institution</th><th>Procedure<br>Start-time</th><th>Donor Name</th><th>MRN</th><th>Donor Record<br>Age/Race/Sex</th><th>Surgeon</th><th>Procedure<br>Description</th></tr><tbody>";  
@@ -1887,7 +2005,7 @@ STYLESHEET;
 .elementmenu:hover .optionlisting { display: block; } 
 .optionlisting { border: 1px solid rgba({$this->color_zackgrey},1); box-sizing: border-box; height: 8vh; margin-top: 1px; overflow-y: auto; overflow-x: hidden; display: none; position: absolute; z-index: 10; background: rgba({$this->color_white},1);  } 
 
-#consentquestions { width: 34vw; height: 25vh; margin-top: 1vh;  border: 1px solid rgba({$this->color_zackgrey},.1); overflow: auto; } 
+#consentquestions { width: 34vw; height: 35vh; margin-top: 1vh;  border: 1px solid rgba({$this->color_zackgrey},.1); overflow: auto; } 
 
 
 #consentDspSide { border-left: 1px solid rgba({$this->color_zackgrey},1); }  
@@ -1919,7 +2037,6 @@ stylesheets;
 
 #btnSrchDonor { border: 1px solid rgba({$this->color_zackgrey},1); font-size: 1.5vh; padding: 6px 8px 6px 8px; margin-top: 1.3vh; }
 
-
 #warningbar { background: rgba({$this->color_bred},.8); font-size: 2.2vh; text-align: center; color: rgba({$this->color_white},1); font-weight: bold; padding: 1vh 0; position: fixed; top: 11vh; left: 4vw; width: 95vw;   } 
 
 #donorDataDsp { font-size: 1.5vh; color: rgba({$this->color_zackgrey},1); margin-top: 7vh; margin-left: 3vw; width: 92vw; }
@@ -1933,7 +2050,6 @@ stylesheets;
 
 #prLocalBBar {  position: fixed; z-index: 28; top: 16vh; left: 3.5vw; }
 
-
 #donorAddHolder { display: grid; grid-template-columns: repeat( 2, 1fr ); grid-gap: 3px; }
 #donorAddHolderLine2 { display: grid; grid-template-columns: repeat( 3, 1fr ); grid-gap: 3px; }
 #donorAddHolderLine3 { display: grid; grid-template-columns: repeat( 3, 1fr ); grid-gap: 3px; }
@@ -1941,6 +2057,9 @@ stylesheets;
 .elementhold { padding: .5vh .2vw; }
 .elementlbl { font-size: 1.3vh; color: rgba({$this->color_zackgrey},1);  }  
 .element input { width: 10vw; } 
+
+#instructionHeader { font-size: 1.5vh; padding: .5vh .3vw;  } 
+#buttonHolder { padding: 1vh .3vw 1vh 0; } 
 
 
 stylesheets;
