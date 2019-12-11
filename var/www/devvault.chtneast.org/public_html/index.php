@@ -469,10 +469,54 @@ class datadoers {
               //CONTINUE
 
              ( !ssValidateDate( $locArr['nwdProcDte'], 'm/d/Y') )  ? (list( $errorInd, $msgArr[] ) = array(1 , "Procedure/Schedule Date ({$locArr['nwdProcDte']}) is not valid!")) : ""; 
-
-
+             ( !is_numeric($locArr['nwdAge']) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "The Donor's Age must be numeric ({$locArr['nwdAge']})")) : "";
+             
+             //TODO:  CHECK VALUES OF INSTITUTION / MENU DROP-DOWNS
+             
+             
+                
               if ( $errorInd === 0 ) {
-                $msgArr[] = $locArr['nwdInstitution'];
+                  
+                //CHECK OR SCHED
+                $ORSchSQL = "SELECT orschedid FROM ORSCHED.ut_zck_ORSchds where forlocation = :location and date_format(ORDate,'%m/%d/%Y') = :dte";
+                $ORSchRS = $conn->prepare($ORSchSQL);
+                $ORSchRS->execute(array(':location' => trim($locArr['nwdInstitution']), ':dte' => trim($locArr['nwdProcDte']) ));
+                if ( $ORSchRS->rowCount() <> 1 ) { 
+                    //TODO: CREATE A NEW OR SCHEDULE
+                    (list( $errorInd, $msgArr[] ) = array(1 , "An OR Schedule does not exist for this criteria - See CHTNEastern Informatics staff ({$locArr['nwdProcDte']} / {$locArr['nwdInstitution']})"));
+                } else { 
+                    $ORRS = $ORSchRS->fetch(PDO::FETCH_ASSOC);
+                    $ORID = $ORRS['orschedid'];
+                }
+                  
+                if ( $errorInd === 0 ) {
+                  $donorid = "";  
+                  if ( trim($locArr['nwdEncounterId']) !== "") { 
+                    //ADD DONOR ID FROM SS
+                    $donorid = trim($locArr['nwdEncounterId']);
+                  }  else { 
+                    //GENERATE NEW DONOR ID
+                    $donorid = guidv4();
+                  }
+                  
+                  $insSQL = "insert into ORSCHED.ut_zck_ORSchDetail (ORSchdid, ORSchdtid, patlast, patfirst, mrn, age, race, sex, procdetails, memo) values (:ORSchdid, :ORSchdtid, :patlast, :patfirst, :mrn, :age, :race, :sex, :procdetails, :memo)";
+                  $insRS = $conn->prepare($insSQL);
+                  $insRS->execute(array(  
+                      ':ORSchdid' => $ORID
+                      ,':ORSchdtid' => $donorid
+                      ,':patlast' => strtoupper(trim($locArr['nwdLName']))
+                      ,':patfirst' => strtoupper(trim($locArr['nwdFName']))
+                      ,':mrn' => trim($locArr['nwdMRN'])
+                      ,':age' => (int)trim($locArr['nwdAge'])
+                      ,':race' => trim($locArr['nwdRace'])
+                      ,':sex' => substr(trim($locArr['nwdSex']),0,1)
+                      ,':procdetails' => trim($locArr['nwdProcNote']) . "\n\n-----------------\nAdded on " . date('m/d/Y') . ' through Donor Vault by ' .  $vuser->userid
+                      ,':memo' => "Added on " . date('m/d/Y') . ' through Donor Vault by ' .  $vuser->userid
+                  ));
+                  
+                  $msgArr[] = $locArr['nwdInstitution'] . " ... " . $donorid . " ... " . $ORID;
+                  $responseCode = 200;
+                }
               }
           }
         }
@@ -523,7 +567,7 @@ DSPTHIS;
               $procdate = $v['procurementdatedsp'];
             }
                
-            $dspTbl .= "<tr id=\"datarow{$rowcnt}\" data-pbiosample=\"{$v['pBioSample']}\" data-pxiid=\"{$v['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
+            $dspTbl .= "<tr id=\"datarow{$rowcnt}\" class=PRDataRow data-pbiosample=\"{$v['readlabel']}\" data-pxiid=\"{$v['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
                      . "<td>{$v['readlabel']}</td>"
                      . "<td>{$v['qmsprocstatus']}</td>"
                      . "<td>{$v['proctype']}</td>"
@@ -543,7 +587,7 @@ DSPTHIS;
           $dspTbl .= <<<THISBAR
               <div id=prLocalBBar>
                 <div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">description</i></div><div class=popupToolTip>Upload Pathology Report</div></div>
-                <div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">block</i></div><div class=popupToolTip>Mark Pathology Report 'No'</div></div>
+                <div class=buttonContainer onclick="markPRNo();"><div class=controlBarButton><i class="material-icons">block</i></div><div class=popupToolTip>Mark Pathology Report 'No'</div></div>
               </div>
 THISBAR;
   
@@ -558,6 +602,64 @@ THISBAR;
       $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
       return $rows;                      
     }
+    
+    function sendpxitoschedule ( $request, $passedData ) {
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      $errorInd = 0;
+      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
+      if ( (int)$vuser->responsecode === 200 ) { 
+        require( serverkeys . '/sspdo.zck');
+        $pdta = json_decode( $passedData, true); 
+        
+        $lookupSQL = <<<ORSCHEDSQL
+SELECT 
+ors.ORSchedid
+, date_format(now(),'%Y-%m-%d') as ORDate
+, ors.ForLocation as forLocation
+, orschdtid
+, ucase(concat(substr(ifnull(PatFirst,''),1,1),'.',substr(ifnull(patlast,''),1,1),'.')) as paini
+, '' as starttime
+, '' as surgeon
+, '' as room
+, ifnull(ord.Age,'') as age
+, ifnull(ord.Race,'') as race
+, ifnull(ord.sex,'') as sex 
+, concat('ADDED ON DEMAND FROM DONORVAULT \n', ifnull(ord.ProcDetails,'')) as procdetails
+, 'T' as proctargetstatus
+, 0 as informedconsent
+, substr(ifnull(ord.MRN,''),-4) as callbackref  
+from ORSCHED.ut_zck_ORSchDetail ord
+left join ORSCHED.ut_zck_ORSchds ors on ord.ORSchdid = ors.ORSchedid
+where orschdtid = :pxiid      
+ORSCHEDSQL;
+        $orRS = $conn->prepare($lookupSQL);
+        $cntr = 0;
+        foreach ( $pdta as $v ) { 
+            $orRS->execute(array(':pxiid' => $v ));
+            while ($r = $orRS->fetch(PDO::FETCH_ASSOC)) { 
+                $rtnArr[$cntr] = $r;
+                $cntr++;
+            }
+        }
+        if ( $cntr > 0 ) { 
+            $env['philisting'] = $rtnArr;
+            $sendThis = json_encode($env);
+            $rslt = json_decode(callrestapi("POST", dataTreeSS . "/data-doers/save-linux-orsched-phi",serverIdent, serverpw,$sendThis),true);
+            
+            $responseCode = 200;
+            
+        } else { 
+            $msgArr[] = "ERROR:  NO DONOR RECORDS FOUND MATCHING REQUEST.  SEE CHTNEASTERN INFORMATICS.";
+        }
+      } else { 
+        $msgArr[] = "USER NOT ALLOWED (Logged Out)";
+      }  
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;         
+    } 
     
 }
 
@@ -1083,9 +1185,7 @@ function chngConsentQuestions ( rtnData ) {
     alert("ERROR:\\n"+dspMsg);
     byId('standardModalBacker').style.display = 'none';    
    } else {
-     
      var dta = JSON.parse( rtnData['responseText'] ); 
-
      byId('consentquestions').innerHTML = dta['DATA'];
    }
 
@@ -1163,15 +1263,34 @@ function dspRetrievedPRs ( rtnData ) {
 }
 
 function rowselector ( whichrow ) { 
-
   if ( byId( whichrow ).dataset.selected == 'true'  ) {
     byId( whichrow ).dataset.selected = "false";
   } else { 
     byId( whichrow ).dataset.selected = "true";
   }
-
 }
 
+function markPRNo() { 
+  var pxlist = [];
+  var pxicnt = 0;       
+  if ( byId('masterPRPTbl') ) {
+     var tds = document.querySelectorAll('.PRDataRow');
+        for (var c = 0; c < tds.length; c++) {  
+          if ( tds[c].dataset.selected === 'true') { 
+             pxlist.push(tds[c].dataset.pbiosample);
+             pxicnt++;
+          }
+        }            
+  if ( parseInt(pxicnt) > 0 ) { 
+    var passdata = JSON.stringify(pxlist);
+    console.log ( passdata ); 
+    //universalAJAX("POST", "send-pxi-to-schedule", passdata, acknowledgepxisend, 2);
+  } else { 
+    alert("You have not selected any biogroups to mark as NOT needing a Pathology Report");
+  }                        
+  }
+}
+            
 
 JAVASCR;
     return $rtnThis;
@@ -1422,6 +1541,7 @@ JAVASCR;
         });
         alert(dspMsg);
       } else {
+        location.reload(true);
         //navigateSite('donor-lookup/'+r['DATA']); 
       }
   }
@@ -1439,7 +1559,6 @@ JAVASCR;
     }
  
     function dspdonorlookupresults( rtnData ) { 
-      console.log ( rtnData )
       var r = JSON.parse(rtnData['responseText']);
       if ( parseInt(r['RESPONSECODE']) !== 200 ) {
         var msg = r['MESSAGE'];
@@ -1454,7 +1573,6 @@ JAVASCR;
     }
 
     function rowselector ( whichrow ) { 
-
       if ( byId( whichrow ).dataset.selected == 'true'  ) {
         byId( whichrow ).dataset.selected = "false";
       } else { 
@@ -1462,7 +1580,43 @@ JAVASCR;
       }
     }
 
-
+    function sendToTodaysSchedule() { 
+      
+      var pxlist = [];
+      var pxicnt = 0;
+      if ( byId('donorDataDsp') ) { 
+        var tds = document.querySelectorAll('.pxidatarow');
+        for (var c = 0; c < tds.length; c++) {  
+          if ( tds[c].dataset.selected === 'true') { 
+             pxlist.push(tds[c].dataset.pxiid);
+             pxicnt++;
+          }
+        }
+        if ( parseInt(pxicnt) > 0 ) { 
+          var passdata = JSON.stringify(pxlist);
+          console.log ( passdata ); 
+          universalAJAX("POST", "send-pxi-to-schedule", passdata, acknowledgepxisend, 2);
+        } else { 
+         alert("You have not selected any donor's to send to the schedule");
+        }
+    }
+}      
+      
+  function acknowledgepxisend( rtnData ) { 
+      console.log( rtnData );
+      var r = JSON.parse(rtnData['responseText']);
+      if ( parseInt(r['RESPONSECODE']) !== 200 ) {
+        var msg = r['MESSAGE'];
+        var dspMsg = "";
+        msg.forEach(function(element) {
+          dspMsg += "\\n - "+element;
+        });
+        alert(dspMsg);
+      } else {
+        alert('Donor added to today\'s schedule.  Refresh the \'Procure Biogroup\' screen in ScienceServer to see the updated schedule');
+      }
+   }
+  
 JAVASCR;
     return $rtnThis;
   }
@@ -1585,7 +1739,7 @@ PGCONTENT;
               $rowcnt = 0;  
               while ($r = $rs->fetch(PDO::FETCH_ASSOC)) { 
                 //. "<td valign=top>{$r['pxiid']}</td>"
-                $chk .= "<tr id=\"datarow{$rowcnt}\" data-pxiid=\"{$r['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
+                $chk .= "<tr class=pxidatarow id=\"datarow{$rowcnt}\" data-pxiid=\"{$r['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
                       . "<td valign=top>{$r['ordate']}</td>"
                       . "<td valign=top>{$r['orlocation']}</td>"
                       . "<td valign=top>{$r['procedurestart']}</td>"
@@ -1600,7 +1754,7 @@ PGCONTENT;
               $chk .= "</tbody></table>";
               $chk .= <<<THISBAR
               <div id=prLocalBBar>
-                <div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">send</i></div><div class=popupToolTip>Send Donor to today's schedule</div></div>
+                <div class=buttonContainer onclick="sendToTodaysSchedule();"><div class=controlBarButton><i class="material-icons">send</i></div><div class=popupToolTip>Send Donor to today's schedule</div></div>
                 <div class=buttonContainer onclick="generateDialog('create-donor');"><div class=controlBarButton><i class="material-icons">create</i></div><div class=popupToolTip>Create New Donor Record</div></div>
               </div>
 THISBAR;
