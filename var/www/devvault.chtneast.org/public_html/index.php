@@ -312,7 +312,43 @@ class datadoers {
       $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
       return $rows;      
     }
-    
+
+    function sendprmarkno ( $request, $passedData ) { 
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      $errorInd = 0;
+      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
+      $msgArr[] = $vuser->userid;
+      if ( (int)$vuser->responsecode === 200 ) { 
+        //{"bglist":"[\"88243T\",\"88240T\",\"88241T\",\"88254T\"]","reason":"this is the reason"}    
+        $pdta = json_decode($passedData, true);
+        $newPDta['user'] = $vuser->userid;
+
+        ( !array_key_exists('bglist', $pdta) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'bglist' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('reason', $pdta) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'reason' DOES NOT EXIST.")) : ""; 
+
+        if ( $errorInd === 0 ) {
+            
+          ( count(json_decode($pdta['bglist']),true) < 1 ) ?  (list( $errorInd, $msgArr[] ) = array(1 , "BG List is blank ... Won't Continue")) : ""; 
+          ( trim($pdta['reason']) === "" ) ?  (list( $errorInd, $msgArr[] ) = array(1 , "You Must Supply a reason why you are marking these biogroups as Pathology Report No")) : ""; 
+
+          if ( $errorInd === 0 ) { 
+            $newPDta['bglist'] = $pdta['bglist']; 
+            //$cqDta = callrestapi("POST", dataTreeSS . "/data-doers/vault-mark-pr-no", serverIdent, serverpw, $passedData);  
+            $msgArr[] = json_encode( $newPDta );
+          }
+        }
+
+
+      } else { 
+          $dta = "USER NOT ALLOWED";
+      }  
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;
+    }
+
     function generatedialog ( $request, $passedData ) { 
       $responseCode = 503;  
       $vuser = new vaultuser();
@@ -323,7 +359,7 @@ class datadoers {
         
         if ( method_exists( $dlogs,str_replace("-","", $pdta['dialog'])) ) { 
           $funcName = trim( str_replace("-","", $pdta['dialog']) ); 
-          $d = $dlogs->$funcName(); 
+          $d = $dlogs->$funcName( $passedData ); 
           $dta = array("pageElement" => $d['dialog'], "dialogID" => $d['dialogid'], 'left' => $d['left'], 'top' => $d['top'], 'primeFocus' => $d['primeFocus']);
           $responseCode = 200;
         } else { 
@@ -567,7 +603,7 @@ DSPTHIS;
               $procdate = $v['procurementdatedsp'];
             }
                
-            $dspTbl .= "<tr id=\"datarow{$rowcnt}\" class=PRDataRow data-pbiosample=\"{$v['readlabel']}\" data-pxiid=\"{$v['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
+            $dspTbl .= "<tr id=\"datarow{$rowcnt}\" class=PRDataRow data-pbiosample=\"{$v['readlabel']}\" data-desig=\"{$v['dx']}\" data-pxiid=\"{$v['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
                      . "<td>{$v['readlabel']}</td>"
                      . "<td>{$v['qmsprocstatus']}</td>"
                      . "<td>{$v['proctype']}</td>"
@@ -688,6 +724,51 @@ DIALOGCONTENT;
       return array( "dialog" => $dialogContent, "dialogid" => $did, "left" => "15vw", "top" => "15vh", "primeFocus" => "" );
     }
     *********************************/
+
+    function markprno ( $passeddata ) {  
+      $did = generateRandomString(15);
+      $titleBar = "Mark Biogroup Pathology Report No";
+      $closerAction = "closeThisDialog('{$did}')";
+      $pdta = json_decode( $passeddata, true); 
+      $rqstDta = json_decode( $pdta['passeddata'], true);
+
+      $bgListDsp = "";
+      $bgArr = "";
+      foreach ($rqstDta as $k => $v ) {
+        $lbl = explode("::",$v);
+        $cntrDsp = (int)$k + 1;
+        $bgArr[] = $lbl[0];
+        $bgListDsp .= "<div class=bgListItem><div class=bgNbring>{$cntrDsp}</div><div>{$lbl[0]}</div><div>{$lbl[1]}</div></div>";
+      }
+      $bgArrStr = json_encode($bgArr);
+      
+      
+      $innerDialog = <<<INNERDLOG
+<input type=hidden value={$bgArrStr} id=bgListing>
+<div id=mprnHolder>
+<div>List of Biogroups</div><div>Reason for marking Biogroups Pathology Report=No</div>
+<div id=bgListDsp>{$bgListDsp} </div>
+<div id=workSide> 
+<div><textarea id=reasonGiven></textarea></div>
+</div>
+<div></div><div align=right> <table><tr><td><button onclick="sendPRMarkNo();">Update</button></td><td><button onclick="{$closerAction}">Cancel</button></td></tr></table> </div>
+</div>
+INNERDLOG;
+
+      $footerBar = "";     
+      $dialogContent = <<<DIALOGCONTENT
+<table border=0 cellspacing=0 cellpadding=0>
+<tr><td id=systemDialogTitle>{$titleBar}</td><td onclick="{$closerAction}" id=systemDialogClose>{$this->closeBtn}</td></tr>
+<tr><td colspan=2>
+  {$innerDialog}
+</td></tr>
+<tr><td colspan=2>{$footerBar}</td></tr>
+</table>
+DIALOGCONTENT;
+      return array( "dialog" => $dialogContent, "dialogid" => $did, "left" => "15vw", "top" => "15vh", "primeFocus" => "" );
+    }
+
+
 
     function createdonor( ) {  
       $did = generateRandomString(15);
@@ -1192,9 +1273,10 @@ function chngConsentQuestions ( rtnData ) {
 }
 
 
-function generateDialog ( whichdialog ) { 
+function generateDialog ( whichdialog, passedData = "" ) { 
   var pdta = new Object();  
   pdta['dialog'] = whichdialog;
+  pdta['passeddata'] = passedData;
   var passdata = JSON.stringify(pdta);
   universalAJAX("POST", "generate-dialog",passdata, dspDialog, 1);
 }
@@ -1277,20 +1359,40 @@ function markPRNo() {
      var tds = document.querySelectorAll('.PRDataRow');
         for (var c = 0; c < tds.length; c++) {  
           if ( tds[c].dataset.selected === 'true') { 
-             pxlist.push(tds[c].dataset.pbiosample);
+             pxlist.push(tds[c].dataset.pbiosample+"::"+tds[c].dataset.desig);
              pxicnt++;
           }
         }            
   if ( parseInt(pxicnt) > 0 ) { 
     var passdata = JSON.stringify(pxlist);
-    console.log ( passdata ); 
-    //universalAJAX("POST", "send-pxi-to-schedule", passdata, acknowledgepxisend, 2);
+    generateDialog('mark-pr-no', passdata); 
   } else { 
     alert("You have not selected any biogroups to mark as NOT needing a Pathology Report");
   }                        
   }
 }
             
+function sendPRMarkNo() { 
+  var pdta = new Object();  
+  pdta['bglist'] = byId('bgListing').value;
+  pdta['reason'] = byId('reasonGiven').value; 
+  var passdata = JSON.stringify(pdta);
+  universalAJAX("POST", "send-pr-mark-no", passdata, statussendprmarkno, 2);
+}
+
+function statussendprmarkno ( rtnData ) { 
+      var r = JSON.parse(rtnData['responseText']);
+      if ( parseInt(r['RESPONSECODE']) !== 200 ) {
+        var msg = r['MESSAGE'];
+        var dspMsg = "";
+        msg.forEach(function(element) {
+          dspMsg += "\\n - "+element;
+        });
+        alert(dspMsg);
+      } else {
+        location.reload(true);
+      }
+}
 
 JAVASCR;
     return $rtnThis;
@@ -1531,7 +1633,6 @@ JAVASCR;
   }
 
   function savedonorcomplete( rtnData ) { 
-      console.log ( rtnData )
       var r = JSON.parse(rtnData['responseText']);
       if ( parseInt(r['RESPONSECODE']) !== 200 ) {
         var msg = r['MESSAGE'];
@@ -1542,7 +1643,6 @@ JAVASCR;
         alert(dspMsg);
       } else {
         location.reload(true);
-        //navigateSite('donor-lookup/'+r['DATA']); 
       }
   }
 
@@ -1580,8 +1680,7 @@ JAVASCR;
       }
     }
 
-    function sendToTodaysSchedule() { 
-      
+    function sendToTodaysSchedule() {  
       var pxlist = [];
       var pxicnt = 0;
       if ( byId('donorDataDsp') ) { 
@@ -1599,8 +1698,8 @@ JAVASCR;
         } else { 
          alert("You have not selected any donor's to send to the schedule");
         }
-    }
-}      
+      }
+  }      
       
   function acknowledgepxisend( rtnData ) { 
       console.log( rtnData );
@@ -2057,6 +2156,19 @@ $rtnThis = <<<STYLESHEET
 #masterPRPTbl tr td { padding: .5vh .3vw; border-right: 1px solid rgba({$this->color_zackgrey},.5); border-bottom: 1px solid rgba({$this->color_zackgrey},.5); } 
 
 #prLocalBBar {  position: fixed; z-index: 28; top: 13vh; left: 3.5vw; }
+
+
+
+#mprnHolder { display: grid; width: 30vw;  grid-template-columns: 1fr 2fr; grid-gap: 5px; }
+#mprnHolder #bgListDsp { height: 20vh; width: 100%; overflow: auto; border: 1px solid rgba({$this->color_zackgrey},1); } 
+
+.bgListItem { display: grid; grid-template-columns: 1fr 6fr; margin-top: .2vh; }
+.bgListItem:nth-child(odd) { background: rgba({$this->color_grey},.7); } 
+
+.bgListItem div {  } 
+.bgListItem .bgNbring { grid-row: 1 / 3; } 
+
+#reasonGiven { width: 100%; resize: none; height: 20vh; padding: 8px;  } 
 
 
 STYLESHEET;
