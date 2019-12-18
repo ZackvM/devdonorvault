@@ -318,7 +318,6 @@ class datadoers {
       $vuser = new vaultuser();
       $errorInd = 0;
       //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
-      $msgArr[] = $vuser->userid;
       if ( (int)$vuser->responsecode === 200 ) { 
         //{"bglist":"[\"88243T\",\"88240T\",\"88241T\",\"88254T\"]","reason":"this is the reason"}    
         $pdta = json_decode($passedData, true);
@@ -334,12 +333,20 @@ class datadoers {
 
           if ( $errorInd === 0 ) { 
             $newPDta['bglist'] = $pdta['bglist']; 
-            //$cqDta = callrestapi("POST", dataTreeSS . "/data-doers/vault-mark-pr-no", serverIdent, serverpw, $passedData);  
-            $msgArr[] = json_encode( $newPDta );
+            $newPDta['reason'] = trim($pdta['reason']);
+            //{"RESPONSECODE":400,"MESSAGE":["FATAL ERROR:  ARRAY KEY 'user' DOES NOT EXIST.","FATAL ERROR:  ARRAY KEY 'bglist' DOES NOT EXIST.","FATAL ERROR:  ARRAY KEY 'reason' DOES NOT EXIST.",3," .. 88338T"," .. 88339T"," .. 88340T","these are normal foreskins and should not have been procured as pending PR","zacheryv@mail.med.upenn.edu"],"ITEMSFOUND":0,"DATA":null}
+            $cqDta = json_decode( callrestapi("POST", dataTreeSS . "/data-doers/vault-mark-pr-no", serverIdent, serverpw, json_encode( $newPDta )  ) , true); 
+                         
+            if ( (int)$cqDta['RESPONSECODE'] === 200 ) { 
+                //SUCCESS
+                $responseCode = 200;
+            } else {  
+              foreach ( $cqDta['MESSAGE'] as $k => $dspv ) {  
+                  $msgArr[] = $dspv;
+              }
+            }
           }
         }
-
-
       } else { 
           $dta = "USER NOT ALLOWED";
       }  
@@ -620,9 +627,10 @@ DSPTHIS;
           }
           $dspTbl .= "</table></div>";
 
+//<div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">description</i></div><div class=popupToolTip>Upload Pathology Report</div></div>
+
           $dspTbl .= <<<THISBAR
               <div id=prLocalBBar>
-                <div class=buttonContainer onclick="alert('click');"><div class=controlBarButton><i class="material-icons">description</i></div><div class=popupToolTip>Upload Pathology Report</div></div>
                 <div class=buttonContainer onclick="markPRNo();"><div class=controlBarButton><i class="material-icons">block</i></div><div class=popupToolTip>Mark Pathology Report 'No'</div></div>
               </div>
 THISBAR;
@@ -727,7 +735,7 @@ DIALOGCONTENT;
 
     function markprno ( $passeddata ) {  
       $did = generateRandomString(15);
-      $titleBar = "Mark Biogroup Pathology Report No";
+      $titleBar = "Mark Biogroup Pathology Report 'No'";
       $closerAction = "closeThisDialog('{$did}')";
       $pdta = json_decode( $passeddata, true); 
       $rqstDta = json_decode( $pdta['passeddata'], true);
@@ -738,7 +746,7 @@ DIALOGCONTENT;
         $lbl = explode("::",$v);
         $cntrDsp = (int)$k + 1;
         $bgArr[] = $lbl[0];
-        $bgListDsp .= "<div class=bgListItem><div class=bgNbring>{$cntrDsp}</div><div>{$lbl[0]}</div><div>{$lbl[1]}</div></div>";
+        $bgListDsp .= "<div class=bgListItem><div class=bgNbring>{$cntrDsp}</div><div class=bgNbrDsp>{$lbl[0]}</div><div class=dxdesig>{$lbl[1]}</div></div>";
       }
       $bgArrStr = json_encode($bgArr);
       
@@ -746,11 +754,9 @@ DIALOGCONTENT;
       $innerDialog = <<<INNERDLOG
 <input type=hidden value={$bgArrStr} id=bgListing>
 <div id=mprnHolder>
-<div>List of Biogroups</div><div>Reason for marking Biogroups Pathology Report=No</div>
+<div class=tagLbls>Biogroups selected</div><div class=tagLbls>Reason for marking Biogroups Pathology Report=No</div>
 <div id=bgListDsp>{$bgListDsp} </div>
-<div id=workSide> 
-<div><textarea id=reasonGiven></textarea></div>
-</div>
+<div id=workSide><textarea id=reasonGiven></textarea></div>
 <div></div><div align=right> <table><tr><td><button onclick="sendPRMarkNo();">Update</button></td><td><button onclick="{$closerAction}">Cancel</button></td></tr></table> </div>
 </div>
 INNERDLOG;
@@ -960,7 +966,7 @@ class pagebuilder {
   public $modalrs = "";
   public $modalrdialogs = "";
   //PAGE NAME MUST BE REGISTERED IN THIS ARRAY - COULD DO A METHOD SEARCH - BUT I LIKE THE CONTROL OF NOT ALLOWING A PAGE THAT IS NOT READY FOR DISPL
-  private $registeredPages = array('login','root','pendingpathologyreportlisting','donorlookup', 'consentwatch');
+  private $registeredPages = array('login','root','pendingpathologyreportlisting','donorlookup', 'consentwatch','donorexclusion');
   //THE SECURITY EXCPETIONS ARE THOSE PAGES THAT DON'T REQUIRE USER RIGHTS TO ACCESS
   private $securityExceptions = array('login');
 
@@ -1096,6 +1102,7 @@ class defaultpageelements {
   <div class=buttonContainer onclick="navigateSite('');"><div id=logoHolder>{$chtnlogo}</div><div class=popupToolTip>Back to Root Screen</div></div>
   <div class=buttonContainer onclick="navigateSite('donor-lookup');"><div class=controlBarButton><i class="material-icons">account_circle</i></div><div class=popupToolTip>Donor Lookup</div></div>
   <div class=buttonContainer onclick="navigateSite('consent-watch');"><div class=controlBarButton><i class="material-icons">watch_later</i></div><div class=popupToolTip>Informed Consent Upload</div></div>
+  <div class=buttonContainer onclick="navigateSite('donor-exclusion');"><div class=controlBarButton><i class="material-icons">warning</i></div><div class=popupToolTip>Donor Consent Exclusions</div></div>
   <div class=buttonContainer onclick="navigateSite('pending-pathology-report-listing');"><div class=controlBarButton><i class="material-icons">format_list_bulleted</i></div><div class=popupToolTip>Pending PR List</div></div>
   <div class="buttonContainer" onclick="window.location.href = '{$tt}/lgdestroy.php';"><div class="controlBarButtonExit"><i class="material-icons">exit_to_app</i></div><div class=popupToolTip>Log-Out</div></div>
 <div id="countdown"></div>
@@ -1749,6 +1756,53 @@ STANDARDHEAD;
   }
 
 
+  function donorexclusion ( $rqst, $usr ) { 
+
+
+
+    $rt = <<<PGCONTENT
+
+<div id=exclusionTitle>Donor Consent Opt-Out/Exclusions</div>
+<div id=instructionBlock><b>Instructions</b>:  On this screen, enter donor's who have informed UPHS of consent opt-out/exclusion.  Anyone on this list MAY NOT HAVE ANY BIOSAMPLES COLLECTED FROM THEIR PROCEDURES!
+
+
+</div>
+
+<div id=frmHolder>
+
+<div class=elementHolder>
+  <div class=elementLbl>First Name</div>
+  <div><input type=text></div>
+</div>
+
+<div class=elementHolder>
+  <div class=elementLbl>Last Name</div>
+  <div><input type=text></div>
+</div>
+
+<div class=elementHolder>
+  <div class=elementLbl>MRN</div>
+  <div><input type=text></div>
+</div>
+
+<div class=elementHolder>
+  <div class=elementLbl>Date Exclusion/Opt-Out</div>
+  <div><input type=text></div>
+</div>
+
+<div class=elementHolder> Search Button </div>
+<div class=elementHolder> Add Button </div>
+
+</div>
+  <div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>
+<div id=dataDsp>
+    Please wait as we retrieve the exclusion listing ...
+</div>
+PGCONTENT;
+    return $rt;
+  }
+
+
   function pendingpathologyreportlisting ( $rqst, $usr ) {
 
       $r = json_encode( $rqst );
@@ -1991,6 +2045,8 @@ PGCONTENT;
         }
       }
 
+
+    //<div class=elementwithbtn><div class=elementLabel>CHTN # (Comma seperated)</div><div class=elemental><input type=text id=fldCHTNList></div></div>
     $uploadside = <<<UPLOADSIDE
 <div id=cwTitle>Upload Consent Form</div>
 <div id=cwDirections>Fill out the form below.  This will add the donor to the 'Consent Watch List' unless you list CHTN Biogroup Numbers.  If you list CHTN Numbers, those numbers will be marked 'Informed Consent YES' in the ScienceServer Database.  </div>
@@ -1999,7 +2055,7 @@ PGCONTENT;
 <div id=elementlineOne>
   <div class=element><div class=elementLabel>Donor First Name</div><div class=elemental><input type=text id=fldDonorFName></div></div>
   <div class=element><div class=elementLabel>Donor Last Name</div><div class=elemental><input type=text id=fldDonorLName></div></div>
-  <div class=elementwithbtn><div class=elementLabel>CHTN # (Comma seperated)</div><div class=elemental><input type=text id=fldCHTNList></div></div>
+  <div>&nbsp;</div>
 </div>
 <div id=elementlineFour>
   <div class=element><div class=elementLabel>Donor Age</div><div class=elemental><table border=0 cellspacing=0 cellpadding=0><tr>
@@ -2137,6 +2193,25 @@ public $color_aqua = "203, 232, 240";
 
 //Z-INDEX:  0-30 - Base - Level // 40-49  - Floating level // 100 Black wait screen // 100+ dialogs above wait screen
 
+function donorexclusion () { 
+
+$rtnThis = <<<STYLESHEET
+
+#exclusionTitle { font-size: 2.5vh; font-weight: bold; color: rgba({$this->color_dblue},1); border-bottom: 1px solid rgba({$this->color_dblue},1); text-align: center; margin-bottom: 1vh; margin-top: 1vh; }
+#instructionBlock { font-size: 1.6vh; line-height: 1.8em; margin-bottom: 1vh;  } 
+
+#frmHolder { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); margin-bottom: 1vh; } 
+.elementLbl { font-size: 1.1vh; color: rgba{$this->color_dblue},1); font-weight: bold;  }
+
+
+#warningbar { background: rgba({$this->color_bred},.8); font-size: 2.2vh; text-align: center; color: rgba({$this->color_white},1); font-weight: bold; padding: 1vh 0; width: 95vw;   } 
+
+STYLESHEET;
+    return $rtnThis;
+}
+
+
+
 function pendingpathologyreportlisting () { 
 
 $rtnThis = <<<STYLESHEET
@@ -2170,6 +2245,12 @@ $rtnThis = <<<STYLESHEET
 
 #reasonGiven { width: 100%; resize: none; height: 20vh; padding: 8px;  } 
 
+#mprnHolder { font-size: 1.2vh; color: rgba({$this->color_zackgrey},1); } 
+.tagLbls { font-size: 1.1vh; font-weight: bold; padding: 1vh 0 0 0; } 
+.bgNbring { font-size: 1.8vh; text-align: center; }
+.bgNbrDsp { font-weight: bold; color: rgba({$this->color_dblue},1); } 
+.dxdesig { font-size: 1vh;    }
+#reasonGiven { font-family: Roboto; font-size: 1.5vh; line-height: 1.8em; } 
 
 STYLESHEET;
     return $rtnThis;
