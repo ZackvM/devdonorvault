@@ -275,9 +275,7 @@ class datadoers {
       $vuser = new vaultuser();
       //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
       if ( (int)$vuser->responsecode === 200 ) { 
-        
           $pdta = json_decode($passedData, true); 
-
           //{\"fldDonorFName\":\"z\",\"fldDonorLName\":\"z\",\"fldCHTNList\":\"z\",\"fldDnrAge\":\"z\",\"fldDnrAgeUOM\":\"\",\"fldDnrRace\":\"\",\"fldDnrSex\":\"\",\"fldIFName\":\"z\",\"fldILName\":\"z\",\"fldProcDte\":\"12\\/20\\/2019\",\"ansQ1.1\":\"Yes\",\"ansQ1.2\":\"Yes\",\"ansQ1.3\":\"Yes\",\"ansQ1.4\":\"Yes\",\"ansQ1.5\":\"12\\/09\\/2019\",\"consentfile\"
           foreach ( $pdta as $key => $value ) {
               if ( !cryptservice($key,'d') ) { 
@@ -286,11 +284,9 @@ class datadoers {
                  $locarr[ cryptservice($key,'d') ] = chtndecrypt( $value );
               }
           }
-          
           //TODO: DATA CHECKS
           //TODO: CHECK ALL FIELDS
-          //TODO:  CHECK CONSENT NOT UPLOADED BEFORE
-          
+          //TODO:  CHECK CONSENT NOT UPLOADED BEFORE          
           require( serverkeys . '/sspdo.zck');
           $insSQL = "insert into ORSCHED.ut_informed_consents ("
                                                                                                  . "donorfname"
@@ -298,10 +294,7 @@ class datadoers {
                                                                                                  . ", chtnnbrlist, age, ageuom, race, sex, rqstrfname, rqstrlname, anticprocdate, consentdoc"
                                                                                                  . ", documentstring) values(:donorfname, :donorlname, :chtnnbrlist, :age, :ageuom, :race, :sex, :rqstrfname, :rqstrlname, :anticprocdate, :consentdoc, :docstring)";
           $insRS = $conn->prepare($insSQL); 
-          //$insRS->execute(array(':donorfname' => $locarr['fldDonorFName'], ':donorlname' => $locarr['fldDonorlName'], ':chtnnbrlist' => $locarr['fldCHTNList'], ':age' => $locarr['fldDnrAge'], ':ageuom' => $locarr['fldDnrAgeUOM'], ':race' => $locarr['fldDnrRace'], ':sex' => $locarr['fldDnrSex'], ':rqstrfname' => $locarr['']       ':docstring' => $locarr['consentfile']));
-          
-          
-          
+          //$insRS->execute(array(':donorfname' => $locarr['fldDonorFName'], ':donorlname' => $locarr['fldDonorlName'], ':chtnnbrlist' => $locarr['fldCHTNList'], ':age' => $locarr['fldDnrAge'], ':ageuom' => $locarr['fldDnrAgeUOM'], ':race' => $locarr['fldDnrRace'], ':sex' => $locarr['fldDnrSex'], ':rqstrfname' => $locarr['']       ':docstring' => $locarr['consentfile']));          
           $dta = "ZZZZZ";
           //$dta = $conn->lastInsertId();
       }  else { 
@@ -322,21 +315,16 @@ class datadoers {
         //{"bglist":"[\"88243T\",\"88240T\",\"88241T\",\"88254T\"]","reason":"this is the reason"}    
         $pdta = json_decode($passedData, true);
         $newPDta['user'] = $vuser->userid;
-
         ( !array_key_exists('bglist', $pdta) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'bglist' DOES NOT EXIST.")) : ""; 
         ( !array_key_exists('reason', $pdta) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'reason' DOES NOT EXIST.")) : ""; 
-
         if ( $errorInd === 0 ) {
-            
           ( count(json_decode($pdta['bglist']),true) < 1 ) ?  (list( $errorInd, $msgArr[] ) = array(1 , "BG List is blank ... Won't Continue")) : ""; 
           ( trim($pdta['reason']) === "" ) ?  (list( $errorInd, $msgArr[] ) = array(1 , "You Must Supply a reason why you are marking these biogroups as Pathology Report No")) : ""; 
-
           if ( $errorInd === 0 ) { 
             $newPDta['bglist'] = $pdta['bglist']; 
             $newPDta['reason'] = trim($pdta['reason']);
             //{"RESPONSECODE":400,"MESSAGE":["FATAL ERROR:  ARRAY KEY 'user' DOES NOT EXIST.","FATAL ERROR:  ARRAY KEY 'bglist' DOES NOT EXIST.","FATAL ERROR:  ARRAY KEY 'reason' DOES NOT EXIST.",3," .. 88338T"," .. 88339T"," .. 88340T","these are normal foreskins and should not have been procured as pending PR","zacheryv@mail.med.upenn.edu"],"ITEMSFOUND":0,"DATA":null}
-            $cqDta = json_decode( callrestapi("POST", dataTreeSS . "/data-doers/vault-mark-pr-no", serverIdent, serverpw, json_encode( $newPDta )  ) , true); 
-                         
+            $cqDta = json_decode( callrestapi("POST", dataTreeSS . "/data-doers/vault-mark-pr-no", serverIdent, serverpw, json_encode( $newPDta )  ) , true);                       
             if ( (int)$cqDta['RESPONSECODE'] === 200 ) { 
                 //SUCCESS
                 $responseCode = 200;
@@ -356,6 +344,49 @@ class datadoers {
       return $rows;
     }
 
+    function checkclearexclusiontitle ( $request, $passedData ) { 
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      $errorInd = 0;
+      if ( (int)$vuser->responsecode === 200 ) { 
+        require( serverkeys . '/sspdo.zck');
+        $pdta = json_decode( $passedData, true); 
+        foreach ( $pdta as $k => $v ) {
+          $locArr[cryptservice( $k, 'd')] = chtndecrypt($v);  
+        }
+        //{"fldExFName":"Diane","fldExLName":"mcgarvey","fldExMRN":"23232323","fldExDate":"","fldExNote":""}
+        ( !array_key_exists('fldExFName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExFName' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('fldExLName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExLName' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('fldExMRN', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExMRN' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('fldExDate', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExDate' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('fldExNote', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExNote' DOES NOT EXIST.")) : ""; 
+         
+        if ( $errorInd === 0 ) { 
+          
+         ( trim($locArr['fldExFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S FIRST NAME.  PLEASE SUPPLY THIS VALUE")) : ""; 
+         ( trim($locArr['fldExLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S LAST NAME.  PLEASE SUPPLY THIS VALUE")) : "";           
+         ( trim($locArr['fldExMRN']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S MEDICAL RECORD NUMBER (MRN).  PLEASE SUPPLY THIS VALUE")) : "";
+         ( trim($locArr['fldExDate']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE DATE OF EXCLUSION/OPT-OUT FOR THIS POTENTIAL DONOR.  PLEASE SUPPLY THIS VALUE")) : "";          
+         
+         if ( $errorInd === 0 ) {
+            ( !ssValidateDate( $locArr['fldExDate'], 'm/d/Y') )  ? (list( $errorInd, $msgArr[] ) = array(1 , "Exclusion/Opt-Out Date ({$locArr['fldExDate']}) is not valid!")) : ""; 
+            
+            if ( $errorInd === 0 ) { 
+             
+             
+              $msgArr[] = json_encode($locArr);  
+            }
+         }
+        }
+      } else { 
+          $dta = "USER NOT ALLOWED";
+      }  
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;        
+    }
+    
     function generatedialog ( $request, $passedData ) { 
       $responseCode = 503;  
       $vuser = new vaultuser();
@@ -1127,6 +1158,66 @@ class javascriptr {
 //    $this->regcode = registerServerIdent(session_id());
   }
 
+  function donorexclusion ($rqststr) { 
+    $tt = treeTop;
+    $dtaTree = dataTree . "/data-doers/";
+    $dtaGTree = dataTreeSS;
+    $eMod = eModulus;
+    $eExpo = eExponent;
+    
+    $fldExFName = cryptservice('fldExFName','e');
+    $fldExLName = cryptservice('fldExLName','e');
+    $fldExMRN = cryptservice('fldExMRN','e');    
+    $fldExDate = cryptservice('fldExDate','e');
+    $fldExNote = cryptservice('fldExNote','e');
+    
+    $rtnThis = <<<JAVASCR
+            
+var key;
+function bodyLoad() {
+  setMaxDigits(262);
+  key = new RSAKeyPair("{$eExpo}","{$eExpo}","{$eMod}", 2048);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  bodyLoad();
+  if ( byId('fldExFName') ) { 
+    byId('fldExFName').focus();
+  }
+}, false);            
+            
+function searchPast() { 
+   var pdta = new Object();  
+   pdta['{$fldExFName}'] = window.btoa( encryptedString ( key, byId('fldExFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+   pdta['{$fldExLName}'] = window.btoa( encryptedString ( key, byId('fldExLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+   pdta['{$fldExMRN}'] = window.btoa( encryptedString ( key, byId('fldExMRN').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+   pdta['{$fldExDate}'] = window.btoa( encryptedString ( key, byId('fldExDate').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );   
+   pdta['{$fldExNote}'] = window.btoa( encryptedString ( key, byId('fldExNote').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );   
+   var passdata = JSON.stringify( pdta );
+   universalAJAX("POST", "check-clear-exclusion-title", passdata, statussearchpast, 2);
+}
+   
+function statussearchpast ( rtnData ) { 
+  if (parseInt(rtnData['responseCode']) !== 200) { 
+    var msgs = JSON.parse(rtnData['responseText']);
+    var dspMsg = ""; 
+    msgs['MESSAGE'].forEach(function(element) { 
+       dspMsg += "\\n - "+element;
+    });
+    alert("ERROR:\\n"+dspMsg);
+    byId('standardModalBacker').style.display = 'none';    
+   } else {
+     //var dta = JSON.parse( rtnData['responseText'] ); 
+     //byId('consentquestions').innerHTML = dta['DATA'];
+     alert( 'CLEAR' );
+   }   
+}
+               
+JAVASCR;
+    return $rtnThis;
+      
+  }
+  
   function globalscripts( $rqststr ) {
 
     $tt = treeTop;
@@ -1137,8 +1228,7 @@ class javascriptr {
 
     $si = serverIdent; 
     $sp = serverpw;
-
-
+    
     $rtnThis = <<<JAVASCR
 
 window.addEventListener("unload", logData, false);
@@ -1763,35 +1853,41 @@ STANDARDHEAD;
     $rt = <<<PGCONTENT
 
 <div id=exclusionTitle>Donor Consent Opt-Out/Exclusions</div>
-<div id=instructionBlock><b>Instructions</b>:  On this screen, enter donor's who have informed UPHS of consent opt-out/exclusion.  Anyone on this list MAY NOT HAVE ANY BIOSAMPLES COLLECTED FROM THEIR PROCEDURES!
+<div id=instructionBlock><b>Instructions</b>:  On this screen, enter donor's who have informed UPHS of consent opt-out/exclusion.  Anyone on this list MAY NOT HAVE ANY BIOSAMPLES COLLECTED FROM THEIR PROCEDURES!  Perform a search to ensure that no biosamples have been collected since exclusion.  Once clear title is given, the name/MRN can be added to the exclusion list with the 'Add' Button.  
 
 
 </div>
 
 <div id=frmHolder>
-
+<input type=hidden id=fldClearTitle>
 <div class=elementHolder>
   <div class=elementLbl>First Name</div>
-  <div><input type=text></div>
+  <div><input type=text id=fldExFName></div>
 </div>
 
 <div class=elementHolder>
   <div class=elementLbl>Last Name</div>
-  <div><input type=text></div>
+  <div><input type=text id=fldExLName></div>
 </div>
 
 <div class=elementHolder>
   <div class=elementLbl>MRN</div>
-  <div><input type=text></div>
+  <div><input type=text id=fldExMRN></div>
 </div>
 
 <div class=elementHolder>
   <div class=elementLbl>Date Exclusion/Opt-Out</div>
-  <div><input type=text></div>
+  <div><input type=text id=fldExDate></div>
 </div>
 
-<div class=elementHolder> Search Button </div>
-<div class=elementHolder> Add Button </div>
+<div class=elementHolder>
+  <div class=elementLbl>Exclusion/Opt-Out Notes</div>
+  <div><input type=text id=fldExNote></div>
+</div>
+            
+            
+<div class=elementHolderA> <button id=btnSrch class=btnAction onclick="searchPast();">Search</button> </div>
+<div class=elementHolderA> <button id=btnAdd class=btnAction>Add Exclusion</button> </div>
 
 </div>
   <div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>
@@ -2197,11 +2293,19 @@ function donorexclusion () {
 
 $rtnThis = <<<STYLESHEET
 
-#exclusionTitle { font-size: 2.5vh; font-weight: bold; color: rgba({$this->color_dblue},1); border-bottom: 1px solid rgba({$this->color_dblue},1); text-align: center; margin-bottom: 1vh; margin-top: 1vh; }
-#instructionBlock { font-size: 1.6vh; line-height: 1.8em; margin-bottom: 1vh;  } 
+#exclusionTitle { font-size: 3vh; font-weight: bold; color: rgba({$this->color_dblue},1); border-bottom: 1px solid rgba({$this->color_dblue},1); text-align: center; margin-bottom: 1vh; margin-top: 1vh; }
+#instructionBlock { font-size: 1.8vh; line-height: 1.8em; margin-bottom: 1vh;  } 
 
-#frmHolder { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); margin-bottom: 1vh; } 
-.elementLbl { font-size: 1.1vh; color: rgba{$this->color_dblue},1); font-weight: bold;  }
+#frmHolder { display: grid; grid-template-columns: repeat( auto-fit, minmax(1vw, 1fr)); margin-bottom: 1vh; grid-gap: 4px; } 
+.elementLbl { font-size: 1.3vh; color: rgba{$this->color_dblue},1); font-weight: bold;  }
+.elementHolderA { text-align: center; } 
+
+#fldExFName { width: 100%; font-size: 1.7vh; } 
+#fldExLName { width: 100%; font-size: 1.7vh; } 
+#fldExMRN { width: 100%;  font-size: 1.7vh; } 
+#fldExDate { width: 100%;  font-size: 1.7vh; } 
+#fldExNote { width: 100%;  font-size: 1.7vh; } 
+.btnAction { height: 100%;  font-size: 1.7vh; width: 10vw; } 
 
 
 #warningbar { background: rgba({$this->color_bred},.8); font-size: 2.2vh; text-align: center; color: rgba({$this->color_white},1); font-weight: bold; padding: 1vh 0; width: 95vw;   } 
