@@ -15,6 +15,11 @@
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 *
 *
+*
+* UPDATE TABLE STUFF
+* ALTER TABLE `ORSCHED`.`srchrequests` ADD COLUMN `clearTitleRslt` LONGTEXT NULL AFTER `onwhen`;
+*
+*
  */
 
 //ini_set('display_errors',1);
@@ -362,19 +367,39 @@ class datadoers {
         ( !array_key_exists('fldExNote', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExNote' DOES NOT EXIST.")) : ""; 
          
         if ( $errorInd === 0 ) { 
-          
-         ( trim($locArr['fldExFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S FIRST NAME.  PLEASE SUPPLY THIS VALUE")) : ""; 
-         ( trim($locArr['fldExLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S LAST NAME.  PLEASE SUPPLY THIS VALUE")) : "";           
+         //( trim($locArr['fldExFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S FIRST NAME.  PLEASE SUPPLY THIS VALUE")) : ""; 
+         //( trim($locArr['fldExLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S LAST NAME.  PLEASE SUPPLY THIS VALUE")) : "";           
          ( trim($locArr['fldExMRN']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S MEDICAL RECORD NUMBER (MRN).  PLEASE SUPPLY THIS VALUE")) : "";
-         ( trim($locArr['fldExDate']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE DATE OF EXCLUSION/OPT-OUT FOR THIS POTENTIAL DONOR.  PLEASE SUPPLY THIS VALUE")) : "";          
-         
+         //( trim($locArr['fldExDate']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE DATE OF EXCLUSION/OPT-OUT FOR THIS POTENTIAL DONOR.  PLEASE SUPPLY THIS VALUE")) : "";          
          if ( $errorInd === 0 ) {
-            ( !ssValidateDate( $locArr['fldExDate'], 'm/d/Y') )  ? (list( $errorInd, $msgArr[] ) = array(1 , "Exclusion/Opt-Out Date ({$locArr['fldExDate']}) is not valid!")) : ""; 
-            
-            if ( $errorInd === 0 ) { 
-             
-             
-              $msgArr[] = json_encode($locArr);  
+            //( !ssValidateDate( $locArr['fldExDate'], 'm/d/Y') )  ? (list( $errorInd, $msgArr[] ) = array(1 , "Exclusion/Opt-Out Date ({$locArr['fldExDate']}) is not valid!")) : ""; 
+            if ( $errorInd === 0 ) {
+              //GET ALL REFERENCES TO THIS MRN 
+              $chkSQL = "SELECT ORSchdtid as pxiid FROM ORSCHED.ut_zck_ORSchDetail where mrn = :mrn";
+              $chkRS = $conn->prepare($chkSQL); 
+              $chkRS->execute( array ( ':mrn' => $locArr['fldExMRN'] ));  
+
+              if ( $chkRS->rowCount() < 1 ) { 
+                //NO DONOR RECORD FOUND
+                //CLEAR TITLE  
+                $responseCode = 404;
+
+              } else { 
+                  //CHECK MASTERRECORD
+                  $pxis = array();
+                  while ($r = $chkRS->fetch(PDO::FETCH_ASSOC)) { 
+                    $pxis[] = $r['pxiid'];   
+                  } 
+                  $pxilist['pxilist'] = $pxis;
+                  $cqDta = json_decode( callrestapi("POST", dataTreeSS . "/data-doers/vault-check-pxiids", serverIdent, serverpw, json_encode( $pxilist )  ) , true);                       
+
+
+
+
+
+
+                  $msgArr[] = json_encode($cqDta);  
+              }
             }
          }
         }
@@ -390,11 +415,9 @@ class datadoers {
     function generatedialog ( $request, $passedData ) { 
       $responseCode = 503;  
       $vuser = new vaultuser();
-      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
       if ( (int)$vuser->responsecode === 200 ) { 
         $pdta = json_decode($passedData, true);
-        $dlogs = new dialogs();
-        
+        $dlogs = new dialogs();  
         if ( method_exists( $dlogs,str_replace("-","", $pdta['dialog'])) ) { 
           $funcName = trim( str_replace("-","", $pdta['dialog']) ); 
           $d = $dlogs->$funcName( $passedData ); 
@@ -414,7 +437,6 @@ class datadoers {
     } 
 
     function consentdocquestions ( $request, $passedData ) { 
-  
       $responseCode = 503;  
       $vuser = new vaultuser();
       if ( (int)$vuser->responsecode === 200 ) { 
@@ -763,6 +785,27 @@ DIALOGCONTENT;
       return array( "dialog" => $dialogContent, "dialogid" => $did, "left" => "15vw", "top" => "15vh", "primeFocus" => "" );
     }
     *********************************/
+    
+    function waiterthis ( $dialogid ) {  
+      $did = generateRandomString(15);
+      $titleBar = "Please Wait ... ";
+      
+      
+      $innerDialog = "<div id=donorClearTitleStatusDsp> This process searches both the entire CHTN Donor database, and if a donor's MRN is found, the data coordinator database is searched for a reference match.  This could take a while.  Please wait ... </div>";
+
+
+      $footerBar = "";      
+      $dialogContent = <<<DIALOGCONTENT
+<table border=0 cellspacing=0 cellpadding=0>
+<tr><td id=systemDialogTitle>{$titleBar}</td><td id=systemDialogClose>&nbsp;</td></tr>
+<tr><td colspan=2>
+  {$innerDialog}
+</td></tr>
+<tr><td colspan=2>{$footerBar}</td></tr>
+</table>
+DIALOGCONTENT;
+      return array( "dialog" => $dialogContent, "dialogid" => $did, "left" => "15vw", "top" => "15vh", "primeFocus" => "" );
+    }
 
     function markprno ( $passeddata ) {  
       $did = generateRandomString(15);
@@ -1186,7 +1229,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 }, false);            
             
-function searchPast() { 
+function searchPast() {
+   generateDialog('waiterthis');  
    var pdta = new Object();  
    pdta['{$fldExFName}'] = window.btoa( encryptedString ( key, byId('fldExFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
    pdta['{$fldExLName}'] = window.btoa( encryptedString ( key, byId('fldExLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
@@ -1198,18 +1242,25 @@ function searchPast() {
 }
    
 function statussearchpast ( rtnData ) { 
-  if (parseInt(rtnData['responseCode']) !== 200) { 
-    var msgs = JSON.parse(rtnData['responseText']);
-    var dspMsg = ""; 
-    msgs['MESSAGE'].forEach(function(element) { 
+  if (parseInt(rtnData['responseCode']) !== 200) {
+    if (parseInt(rtnData['responseCode']) === 404) {
+     byId('fldClearTitle').value = "CLEAR";
+     byId('donorClearTitleStatusDsp').innerHTML = "<div>The entered MRN does NOT exist in the donor vault.  If the entered MRN is correct then you may enter this donor to the exclusion list.</div><div><button onclick=\"closeThisDialog('"+thisDspDialogId.trim()+"');\">Close</button></div>"; 
+    } else {  
+      var msgs = JSON.parse(rtnData['responseText']);
+      var dspMsg = ""; 
+      msgs['MESSAGE'].forEach(function(element) { 
        dspMsg += "\\n - "+element;
-    });
-    alert("ERROR:\\n"+dspMsg);
-    byId('standardModalBacker').style.display = 'none';    
+      });
+      if ( thisDspDialogId.trim() !== "" ) { 
+        byId(thisDspDialogId.trim()).parentNode.removeChild(byId(thisDspDialogId.trim()));
+      }
+      alert("ERROR:\\n"+dspMsg);
+      byId('standardModalBacker').style.display = 'none'; 
+    } 
    } else {
-     //var dta = JSON.parse( rtnData['responseText'] ); 
-     //byId('consentquestions').innerHTML = dta['DATA'];
-     alert( 'CLEAR' );
+     byId('fldClearTitle').value = "CLEAR";
+     byId('donorClearTitleStatusDsp').innerHTML = "No Donor Reference Found. You can add this donor to the exclusion list without an issue.<button onclick=\"closeThisDialog('"+thisDspDialogId.trim()+"');\">Close</button>"; 
    }   
 }
                
@@ -1245,7 +1296,7 @@ var mousex;
 var mousey;
 
 var httpage = getXMLHTTPRequest();
-var httpageone = getXMLHTTPRequest();
+var httpdialog = getXMLHTTPRequest();
 function getXMLHTTPRequest() {
 try {
 req = new XMLHttpRequest();
@@ -1263,13 +1314,33 @@ req = new XMLHttpRequest();
 return req;
 }
 
+function dialogAJAX(methd, url, passedDataJSON, callbackfunc, dspBacker) {
+  if (dspBacker === 1) {
+    byId('standardModalBacker').style.display = 'block';
+  }
+  var rtn = new Object();
+  var grandurl = dataPath+url;
+  httpdialog.open(methd, grandurl, true);
+  httpdialog.setRequestHeader("Authorization","Basic " + btoa("{$regUsr}:{$regCode}"));
+  httpdialog.onreadystatechange = function() {
+    if (httpdialog.readyState === 4) {
+      rtn['responseCode'] = httpdialog.status;
+      rtn['responseText'] = httpdialog.responseText;
+      if (parseInt(dspBacker) < 2) {
+        byId('standardModalBacker').style.display = 'none';
+      }
+      callbackfunc(rtn);
+    }
+  };
+  httpdialog.send(passedDataJSON);
+}
+
 function universalAJAX(methd, url, passedDataJSON, callbackfunc, dspBacker) {
   if (dspBacker === 1) {
     byId('standardModalBacker').style.display = 'block';
   }
   var rtn = new Object();
   var grandurl = dataPath+url;
-  //console.log( grandurl );
   httpage.open(methd, grandurl, true);
   httpage.setRequestHeader("Authorization","Basic " + btoa("{$regUsr}:{$regCode}"));
   httpage.onreadystatechange = function() {
@@ -1285,8 +1356,10 @@ function universalAJAX(methd, url, passedDataJSON, callbackfunc, dspBacker) {
   httpage.send(passedDataJSON);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
 
+
+
+document.addEventListener('DOMContentLoaded', function() {
 
 document.addEventListener('keypress', function(event) {
   timeleft = 600;
@@ -1370,14 +1443,16 @@ function chngConsentQuestions ( rtnData ) {
 }
 
 
-function generateDialog ( whichdialog, passedData = "" ) { 
+function generateDialog ( whichdialog, passedData = "" ) {
+  thisDspDialogId = ""; 
   var pdta = new Object();  
   pdta['dialog'] = whichdialog;
   pdta['passeddata'] = passedData;
   var passdata = JSON.stringify(pdta);
-  universalAJAX("POST", "generate-dialog",passdata, dspDialog, 1);
+  dialogAJAX("POST", "generate-dialog",passdata, dspDialog, 1);
 }
 
+var thisDspDialogId = "";
 function dspDialog( rtnData ) { 
   if (parseInt(rtnData['responseCode']) !== 200) { 
     var msgs = JSON.parse(rtnData['responseText']);
@@ -1392,6 +1467,7 @@ function dspDialog( rtnData ) {
         //TODO: MAKE SURE ALL ELEMENTS EXIST BEFORE CREATION
         var d = document.createElement('div');
         d.setAttribute("id", dta['DATA']['dialogID']); 
+        thisDspDialogId = dta['DATA']['dialogID'];
         d.setAttribute("class","floatingDiv");
         d.style.left = dta['DATA']['left'];
         d.style.top = dta['DATA']['top'];
@@ -1509,7 +1585,6 @@ var byId = function( id ) { return document.getElementById( id ); };
 var treeTop = "{$tt}";
 
 var httpage = getXMLHTTPRequest();
-var httpageone = getXMLHTTPRequest();
 function getXMLHTTPRequest() {
 try {
 req = new XMLHttpRequest();
@@ -1853,13 +1928,13 @@ STANDARDHEAD;
     $rt = <<<PGCONTENT
 
 <div id=exclusionTitle>Donor Consent Opt-Out/Exclusions</div>
-<div id=instructionBlock><b>Instructions</b>:  On this screen, enter donor's who have informed UPHS of consent opt-out/exclusion.  Anyone on this list MAY NOT HAVE ANY BIOSAMPLES COLLECTED FROM THEIR PROCEDURES!  Perform a search to ensure that no biosamples have been collected since exclusion.  Once clear title is given, the name/MRN can be added to the exclusion list with the 'Add' Button.  
+<div id=instructionBlock><b>Instructions</b>:  On this screen, enter donor's who have informed UPHS of consent opt-out/exclusion.  Anyone on this list MAY NOT HAVE ANY BIOSAMPLES COLLECTED FROM THEIR PROCEDURES!  <b>1)</b> Perform a search to ensure that no biosamples have been collected from this donor.  If there is a biosample, the system will alert you at the end of the search.  Immediately notify CHTNEastern Management. <b>2)</b> If donor is clear, then the name/MRN can be added to the exclusion list with the 'Add' Button.  
 
 
 </div>
 
 <div id=frmHolder>
-<input type=hidden id=fldClearTitle>
+<input type=hidden id=fldClearTitle value="">
 <div class=elementHolder>
   <div class=elementLbl>First Name</div>
   <div><input type=text id=fldExFName></div>
@@ -2309,6 +2384,9 @@ $rtnThis = <<<STYLESHEET
 
 
 #warningbar { background: rgba({$this->color_bred},.8); font-size: 2.2vh; text-align: center; color: rgba({$this->color_white},1); font-weight: bold; padding: 1vh 0; width: 95vw;   } 
+
+#donorClearTitleStatusDsp { width: 40vw; font-size: 1.8vh; text-align: justify; line-height: 1.6em; padding: 1vh 1vw;  } 
+
 
 STYLESHEET;
     return $rtnThis;
