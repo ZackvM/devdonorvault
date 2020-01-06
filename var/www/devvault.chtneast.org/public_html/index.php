@@ -365,7 +365,9 @@ class datadoers {
         ( !array_key_exists('fldExMRN', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExMRN' DOES NOT EXIST.")) : ""; 
         ( !array_key_exists('fldExDate', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExDate' DOES NOT EXIST.")) : ""; 
         ( !array_key_exists('fldExNote', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExNote' DOES NOT EXIST.")) : ""; 
-         
+
+        //TODO:   WRITE A SEARCH TRACKER INSTEAD OF JUST 'CLEAR'
+
         if ( $errorInd === 0 ) { 
          //( trim($locArr['fldExFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S FIRST NAME.  PLEASE SUPPLY THIS VALUE")) : ""; 
          //( trim($locArr['fldExLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S LAST NAME.  PLEASE SUPPLY THIS VALUE")) : "";           
@@ -383,7 +385,6 @@ class datadoers {
                 //NO DONOR RECORD FOUND
                 //CLEAR TITLE  
                 $responseCode = 404;
-
               } else { 
                   //CHECK MASTERRECORD
                   $pxis = array();
@@ -392,13 +393,15 @@ class datadoers {
                   } 
                   $pxilist['pxilist'] = $pxis;
                   $cqDta = json_decode( callrestapi("POST", dataTreeSS . "/data-doers/vault-check-pxiids", serverIdent, serverpw, json_encode( $pxilist )  ) , true);                       
+                  //{"RESPONSECODE":200,"MESSAGE":[],"ITEMSFOUND":3,"DATA":["89242T","89087T","89088T"]}
+                  if ( (int)$cqDta['ITEMSFOUND'] < 1 ) {
+                    $responseCode = 200;
+                  } else {
 
 
 
-
-
-
-                  $msgArr[] = json_encode($cqDta);  
+                      $msgArr[] = $cqDta['DATA']; 
+                  } 
               }
             }
          }
@@ -1230,6 +1233,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }, false);            
             
 function searchPast() {
+   byId('fldClearTitle').value = "";
    generateDialog('waiterthis');  
    var pdta = new Object();  
    pdta['{$fldExFName}'] = window.btoa( encryptedString ( key, byId('fldExFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
@@ -1934,7 +1938,7 @@ STANDARDHEAD;
 </div>
 
 <div id=frmHolder>
-<input type=hidden id=fldClearTitle value="">
+<input type=text id=fldClearTitle value="">
 <div class=elementHolder>
   <div class=elementLbl>First Name</div>
   <div><input type=text id=fldExFName></div>
