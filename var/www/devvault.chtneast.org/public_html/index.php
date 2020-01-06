@@ -349,7 +349,7 @@ class datadoers {
       return $rows;
     }
 
-    function checkclearexclusiontitle ( $request, $passedData ) { 
+    function makeexclusionrqst ( $request, $passedData ) { 
       $responseCode = 503;  
       $vuser = new vaultuser();
       $errorInd = 0;
@@ -366,8 +366,53 @@ class datadoers {
         ( !array_key_exists('fldExDate', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExDate' DOES NOT EXIST.")) : ""; 
         ( !array_key_exists('fldExNote', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExNote' DOES NOT EXIST.")) : ""; 
 
+        
+        if ( $errorInd === 0 ) {
+           ( trim($locArr['fldExMRN']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THIS FUNCTION NEEDS THE POTENTIAL DONOR'S MEDICAL RECORD NUMBER (MRN).  PLEASE SUPPLY THIS VALUE")) : "";
+           ( trim($locArr['fldExFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THIS FUNCTION NEEDS THE POTENTIAL DONOR'S FIRST NAME.  PLEASE SUPPLY THIS VALUE")) : ""; 
+           ( trim($locArr['fldExLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THIS FUNCTION NEEDS THE POTENTIAL DONOR'S LAST NAME.  PLEASE SUPPLY THIS VALUE")) : "";                      
+           ( trim($locArr['fldExDate']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THIS FUNCTION NEEDS THE DATE OF OPT-OUT FOR THIS POTENTIAL DONOR.  PLEASE SUPPLY THIS VALUE")) : ""; 
+           ( trim($locArr['fldExDate']) !== "" && !ssValidateDate(trim($locArr['fldExDate']),'m/d/Y' )) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE OPT-OUT DATE FOR THIS POTENTIAL DONOR IS NOT A VALID DATE.")) : "";
+           
+         if ( $errorInd === 0 ) {  
+        $chkr = self::checkclearexclusiontitle ( "" , $passedData );
+        //{"statusCode":503,"data":{"RESPONSECODE":503,"MESSAGE":[["89242T","89087T","89088T"]],"ITEMSFOUND":0,"DATA":null}}
+        
+        
+        
+        
+            $msgArr[] = json_encode($chkr);
+         }
+        }
+        $responseCode = 200;
+      }
+      $msg = "MESSAGE:  ";
+      foreach ( $msgArr as $k => $mv ) {
+        $msg .= "<br>- {$mv}";
+      }
+      
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;   
+    }
+    
+    function checkclearexclusiontitle ( $request, $passedData ) { 
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      $errorInd = 0;
+      if ( (int)$vuser->responsecode === 200 ) { 
+        require( serverkeys . '/sspdo.zck');
+        $pdta = json_decode( $passedData, true); 
+        foreach ( $pdta as $k => $v ) {
+          $locArr[cryptservice( $k, 'd')] = chtndecrypt($v);  
+        }
+        //{"fldExFName":"Diane","fldExLName":"mcgarvey","fldExMRN":"23232323","fldExDate":"","fldExNote":""}
+        ( !array_key_exists('fldExFName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExFName' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('fldExLName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExLName' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('fldExMRN', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExMRN' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('fldExDate', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExDate' DOES NOT EXIST.")) : ""; 
+        ( !array_key_exists('fldExNote', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExNote' DOES NOT EXIST.")) : ""; 
         //TODO:   WRITE A SEARCH TRACKER INSTEAD OF JUST 'CLEAR'
-
         if ( $errorInd === 0 ) { 
          //( trim($locArr['fldExFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S FIRST NAME.  PLEASE SUPPLY THIS VALUE")) : ""; 
          //( trim($locArr['fldExLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S LAST NAME.  PLEASE SUPPLY THIS VALUE")) : "";           
@@ -380,7 +425,6 @@ class datadoers {
               $chkSQL = "SELECT ORSchdtid as pxiid FROM ORSCHED.ut_zck_ORSchDetail where mrn = :mrn";
               $chkRS = $conn->prepare($chkSQL); 
               $chkRS->execute( array ( ':mrn' => $locArr['fldExMRN'] ));  
-
               if ( $chkRS->rowCount() < 1 ) { 
                 //NO DONOR RECORD FOUND
                 //CLEAR TITLE  
@@ -397,9 +441,6 @@ class datadoers {
                   if ( (int)$cqDta['ITEMSFOUND'] < 1 ) {
                     $responseCode = 200;
                   } else {
-
-
-
                       $msgArr[] = $cqDta['DATA']; 
                   } 
               }
@@ -791,7 +832,7 @@ DIALOGCONTENT;
     
     function waiterthis ( $dialogid ) {  
       $did = generateRandomString(15);
-      $titleBar = "Please Wait ... ";
+      $titleBar = "<div id=dialogTitleBar>Please Wait ... </div>";
       
       
       $innerDialog = "<div id=donorClearTitleStatusDsp> This process searches both the entire CHTN Donor database, and if a donor's MRN is found, the data coordinator database is searched for a reference match.  This could take a while.  Please wait ... </div>";
@@ -1216,6 +1257,7 @@ class javascriptr {
     $fldExMRN = cryptservice('fldExMRN','e');    
     $fldExDate = cryptservice('fldExDate','e');
     $fldExNote = cryptservice('fldExNote','e');
+    $fldExTitle = cryptservice('fldClearTitle','e');
     
     $rtnThis = <<<JAVASCR
             
@@ -1230,8 +1272,41 @@ document.addEventListener('DOMContentLoaded', function() {
   if ( byId('fldExFName') ) { 
     byId('fldExFName').focus();
   }
+  
+  if ( byId('fldExMRN') ) {
+    byId('fldExMRN').addEventListener('keyup',function() { 
+      byId('fldClearTitle').value = "";
+     byId('fldExMRN').style.background = "#ffffff";
+    }, false);
+  
+  }
+  
 }, false);            
+  
+function sendExclusionRqst() { 
+   generateDialog('waiterthis');
+   var pdta = new Object();  
+   pdta['{$fldExFName}'] = window.btoa( encryptedString ( key, byId('fldExFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+   pdta['{$fldExLName}'] = window.btoa( encryptedString ( key, byId('fldExLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+   pdta['{$fldExMRN}'] = window.btoa( encryptedString ( key, byId('fldExMRN').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+   pdta['{$fldExDate}'] = window.btoa( encryptedString ( key, byId('fldExDate').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );   
+   pdta['{$fldExNote}'] = window.btoa( encryptedString ( key, byId('fldExNote').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );   
+   var passdata = JSON.stringify( pdta );
+   universalAJAX("POST", "make-exclusion-rqst", passdata, exclusionrqstrslt, 2);   
+}
             
+function exclusionrqstrslt ( rtnData ) { 
+    if (parseInt(rtnData['responseCode']) == 200) {
+       //{"responseCode":200,"responseText":"{\"RESPONSECODE\":200,\"MESSAGE\":503,\"ITEMSFOUND\":0,\"DATA\":null}"}  
+       var msgs = JSON.parse(rtnData['responseText']);
+       if ( byId('dialogTitleBar') ) { 
+          byId('dialogTitleBar').innerHTML = "Response From Server";
+       }
+       
+       byId('donorClearTitleStatusDsp').innerHTML = "<div>"+msgs['MESSAGE']+"</div><div><button onclick=\"closeThisDialog('"+thisDspDialogId.trim()+"');\">Close</button></div>";
+   }
+}   
+   
 function searchPast() {
    byId('fldClearTitle').value = "";
    generateDialog('waiterthis');  
@@ -1249,21 +1324,30 @@ function statussearchpast ( rtnData ) {
   if (parseInt(rtnData['responseCode']) !== 200) {
     if (parseInt(rtnData['responseCode']) === 404) {
      byId('fldClearTitle').value = "CLEAR";
+     byId('fldExMRN').style.background = "#d8ffc2";
      byId('donorClearTitleStatusDsp').innerHTML = "<div>The entered MRN does NOT exist in the donor vault.  If the entered MRN is correct then you may enter this donor to the exclusion list.</div><div><button onclick=\"closeThisDialog('"+thisDspDialogId.trim()+"');\">Close</button></div>"; 
     } else {  
       var msgs = JSON.parse(rtnData['responseText']);
       var dspMsg = ""; 
       msgs['MESSAGE'].forEach(function(element) { 
-       dspMsg += "\\n - "+element;
+       dspMsg += element;
       });
-      if ( thisDspDialogId.trim() !== "" ) { 
-        byId(thisDspDialogId.trim()).parentNode.removeChild(byId(thisDspDialogId.trim()));
-      }
-      alert("ERROR:\\n"+dspMsg);
-      byId('standardModalBacker').style.display = 'none'; 
+      //if ( thisDspDialogId.trim() !== "" ) { 
+      //  byId(thisDspDialogId.trim()).parentNode.removeChild(byId(thisDspDialogId.trim()));
+      //}
+      var bglist = dspMsg.split(",");
+      var bgs = "";
+      bglist.forEach(function(bgelem) {
+        bgs += "<br>- "+bgelem
+      });
+      byId('donorClearTitleStatusDsp').innerHTML = "<b>IMMEDIATELY NOTIFY A CHTN MANAGER!</b><p>THIS EXCLUSION HAS HAD TISSUE COLLECTED AT A POINT! THE FOLLOWING IS A BIOGROUP LISTING: <br>"+bgs+"<p><button onclick=\"closeThisDialog('"+thisDspDialogId.trim()+"');\">Close</button>";
+      byId('fldClearTitle').value = "BAD";
+      byId('fldExMRN').style.background = "#ffbeb5"; 
+      //byId('standardModalBacker').style.display = 'none'; 
     } 
    } else {
      byId('fldClearTitle').value = "CLEAR";
+     byId('fldExMRN').style.background = "#d8ffc2";
      byId('donorClearTitleStatusDsp').innerHTML = "No Donor Reference Found. You can add this donor to the exclusion list without an issue.<button onclick=\"closeThisDialog('"+thisDspDialogId.trim()+"');\">Close</button>"; 
    }   
 }
@@ -1925,6 +2009,7 @@ STANDARDHEAD;
   }
 
 
+  //<button id=btnSrch class=btnAction onclick="searchPast();">Search</button>
   function donorexclusion ( $rqst, $usr ) { 
 
 
@@ -1932,13 +2017,13 @@ STANDARDHEAD;
     $rt = <<<PGCONTENT
 
 <div id=exclusionTitle>Donor Consent Opt-Out/Exclusions</div>
-<div id=instructionBlock><b>Instructions</b>:  On this screen, enter donor's who have informed UPHS of consent opt-out/exclusion.  Anyone on this list MAY NOT HAVE ANY BIOSAMPLES COLLECTED FROM THEIR PROCEDURES!  <b>1)</b> Perform a search to ensure that no biosamples have been collected from this donor.  If there is a biosample, the system will alert you at the end of the search.  Immediately notify CHTNEastern Management. <b>2)</b> If donor is clear, then the name/MRN can be added to the exclusion list with the 'Add' Button.  
+<div id=instructionBlock><b>Instructions</b>:  On this screen, enter donors who have informed UPHS of consent opt-out/exclusion.  <p>Anyone on this list MAY NOT HAVE ANY BIOSAMPLES COLLECTED FROM THEIR PROCEDURES!  Immediately notify CHTNEastern Management if an 'Add Exclusion' action results in biosamples returned.  
 
 
 </div>
 
 <div id=frmHolder>
-<input type=text id=fldClearTitle value="">
+<input type=hidden id=fldClearTitle value="">
 <div class=elementHolder>
   <div class=elementLbl>First Name</div>
   <div><input type=text id=fldExFName></div>
@@ -1955,7 +2040,7 @@ STANDARDHEAD;
 </div>
 
 <div class=elementHolder>
-  <div class=elementLbl>Date Exclusion/Opt-Out</div>
+  <div class=elementLbl>Date Opt-Out (mm/dd/YYYY)</div>
   <div><input type=text id=fldExDate></div>
 </div>
 
@@ -1965,8 +2050,8 @@ STANDARDHEAD;
 </div>
             
             
-<div class=elementHolderA> <button id=btnSrch class=btnAction onclick="searchPast();">Search</button> </div>
-<div class=elementHolderA> <button id=btnAdd class=btnAction>Add Exclusion</button> </div>
+<div class=elementHolderA>  </div>
+<div class=elementHolderA> <button id=btnAdd class=btnAction onclick="sendExclusionRqst();">Add Exclusion</button> </div>
 
 </div>
   <div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>
