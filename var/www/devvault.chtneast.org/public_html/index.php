@@ -365,23 +365,39 @@ class datadoers {
         ( !array_key_exists('fldExMRN', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExMRN' DOES NOT EXIST.")) : ""; 
         ( !array_key_exists('fldExDate', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExDate' DOES NOT EXIST.")) : ""; 
         ( !array_key_exists('fldExNote', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExNote' DOES NOT EXIST.")) : ""; 
-
-        
         if ( $errorInd === 0 ) {
            ( trim($locArr['fldExMRN']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THIS FUNCTION NEEDS THE POTENTIAL DONOR'S MEDICAL RECORD NUMBER (MRN).  PLEASE SUPPLY THIS VALUE")) : "";
            ( trim($locArr['fldExFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THIS FUNCTION NEEDS THE POTENTIAL DONOR'S FIRST NAME.  PLEASE SUPPLY THIS VALUE")) : ""; 
            ( trim($locArr['fldExLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THIS FUNCTION NEEDS THE POTENTIAL DONOR'S LAST NAME.  PLEASE SUPPLY THIS VALUE")) : "";                      
            ( trim($locArr['fldExDate']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THIS FUNCTION NEEDS THE DATE OF OPT-OUT FOR THIS POTENTIAL DONOR.  PLEASE SUPPLY THIS VALUE")) : ""; 
            ( trim($locArr['fldExDate']) !== "" && !ssValidateDate(trim($locArr['fldExDate']),'m/d/Y' )) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE OPT-OUT DATE FOR THIS POTENTIAL DONOR IS NOT A VALID DATE.")) : "";
-           
          if ( $errorInd === 0 ) {  
-        $chkr = self::checkclearexclusiontitle ( "" , $passedData );
-        //{"statusCode":503,"data":{"RESPONSECODE":503,"MESSAGE":[["89242T","89087T","89088T"]],"ITEMSFOUND":0,"DATA":null}}
-        
-        
-        
-        
-            $msgArr[] = json_encode($chkr);
+          $chkr = self::checkclearexclusiontitle ( "" , $passedData );
+          switch ( (int)$chkr['data']['RESPONSECODE'] ) {
+            case 200:
+                //200 MRN FOUND NO BIOGROUPS - Add Exclusion
+                $updSQL = "update ORSCHED.ut_zck_ORSchDetail set TissueTargetStatus = 'EXC', TissueTargetOn = now(), TissueTargetBy = :vuser, procdetails = concat('DONOR HAS OPTED OUT OF BIOGROUP COLLECTION.  DO NOT COLLECT FROM THIS DONOR!\n',ifnull(procdetails,'')), memo = concat(:optmsg,ifnull(memo,'')), targetnotefromweb = :exnote where mrn = :mrn";
+                $updRS = $conn->prepare($updSQL);
+                $updRS->execute ( array(':vuser' => $vuser->userid,':optmsg' => "OPT OUT ON {$locArr['fldExDate']} \n", ':exnote' =>  trim($locArr['fldExNote']), ':mrn' => trim($locArr['fldExMRN'])));
+                $msgArr[] = "DONOR WAS FOUND ON A SCHEDULE BUT HAD NO BIOGROUPS REFERENCED IN THE PAST.  THE EXCLUSION/OPT-OUT HAS BEEN MARKED.  REFRESH YOUR SCREEN TO SEE THE UPDATED EXCLUSION LIST.";
+                break;
+            case 404:
+                //NO MRN FOUND - Add Exclusion    
+                $orschSQL = "insert into ORSCHED.ut_zck_ORSchDetail (ORSchdid, ORSchdtid, patlast, patfirst, mrn, procdetails, memo, tissuetargetstatus, tissuetargeton, tissuetargetby, targetnotefromweb) values ('EXCLUSIONLISTING',:guid, :patlast, :patfirst, :mrn, :procdetails, :memo, :tissuetargetstatus, now(), :tissuetargetby, :targetnotefromweb)";
+                $orschRS = $conn->prepare($orschSQL);
+                $orschRS->execute(array( ':guid' => guidv4(), ':patlast' => strtoupper(trim($locArr['fldExLName'])), ':patfirst' => strtoupper(trim($locArr['fldExFName'])), ':mrn' => trim($locArr['fldExMRN']), ':procdetails' => 'DONOR HAS OPTED OUT OF BIOGROUP COLLECTION.  DO NOT COLLECT FROM THIS DONOR!', ':memo' => 'OPT OUT ON ' . trim($locArr['fldExDate']), ':tissuetargetstatus' => 'EXC', ':tissuetargetby' => $vuser->userid, ':targetnotefromweb' => trim($locArr['fldExNote']) ));
+                $msgArr[] = "DONOR WAS NOT FOUND ON ANY SCHEDULE AND HAS NO BIOGROUPS REFERENCED IN THE PAST.  THE EXCLUSION/OPT-OUT HAS BEEN MARKED.  REFRESH YOUR SCREEN TO SEE THE UPDATED EXCLUSION LIST.";
+                break;
+            case 406: 
+                //BIOGROUPS FOUND - DISPLAY ERROR
+                $msgArr[] = "<b>SEE A CHTNEASTERN MANAGER IMMEDIATELY!!</b><br>(EXCLUSION NOT ADDED TO DONOR VAULT)<br>BIOGROUP(s) FOUND: <br>";
+                foreach ( $chkr['data']['MESSAGE'][0] as $k => $v ) {
+                    $msgArr[] = "&nbsp;&nbsp;&nbsp;&nbsp; {$v}";
+                }
+                break;
+            default:
+            $msgArr[] = "<b>ERROR:</b><br>THERE WAS AN ERROR IN THE PROCESS.  SEE CHTNEASTERN INFORMATICS (error: 20200106a)";
+          }
          }
         }
         $responseCode = 200;
@@ -390,7 +406,6 @@ class datadoers {
       foreach ( $msgArr as $k => $mv ) {
         $msg .= "<br>- {$mv}";
       }
-      
       $rows['statusCode'] = $responseCode; 
       $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
       return $rows;   
@@ -441,7 +456,8 @@ class datadoers {
                   if ( (int)$cqDta['ITEMSFOUND'] < 1 ) {
                     $responseCode = 200;
                   } else {
-                      $msgArr[] = $cqDta['DATA']; 
+                    $responseCode = 406;
+                    $msgArr[] = $cqDta['DATA']; 
                   } 
               }
             }
@@ -669,6 +685,38 @@ class datadoers {
       return $rows;                      
     }
 
+    function retrieveexclusionlisting ( $request, $passedData ) { 
+      require( serverkeys . '/sspdo.zck');
+      $responseCode = 503; 
+      $itemsfound = 0;
+      
+      $exSQL = "SELECT ucase(concat(ifnull(patlast,''),', ',ifnull(patfirst,''))) as donor, mrn, memo, date_format(TissueTargetOn,'%m/%d/%Y') optouttargetdate, TissueTargetBy optoutaddedby  FROM ORSCHED.ut_zck_ORSchDetail where tissuetargetstatus = 'EXC' OR orschdid = 'EXCLUSIONLISTING' order by patlast"; 
+      $exRS = $conn->prepare($exSQL); 
+      $exRS->execute();
+      
+      $itemsfound = $exRS->rowCount();
+      $dspTbl = <<<DSPTHIS
+<div id=PNDPRTitle>UPHS DONORS OPT-OUT BIOSAMPLE SAMPLE COLLECTION - DO NOT COLLECT!</div>
+<div id=resultCnt>Individual(s) Found: {$itemsfound}</div>    
+<div id=dspWorkBenchTbl>
+<table>
+DSPTHIS;
+      if ( $itemsfound > 0 ) { 
+          //BUILD TABLE
+          while ( $r = $exRS->fetch(PDO::FETCH_ASSOC)) { 
+             $dspTbl .= "<tr><td>{$r['mrn']}</td><td>{$r['donor']}</td><td>{$r['optouttargetdate']}</td><td>{$r['optoutaddedby']}</td><td>{$r['memo']}</td></tr>";   
+          }
+      }
+      $dspTbl .= "</table></div>";
+      $dta = $dspTbl;
+      $responseCode = 200;
+      
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => $itemsfound,  'DATA' => $dta);
+      return $rows;                 
+    }
+    
     function retrievependingprlisting( $request, $passedData ) { 
         
       require( serverkeys . '/sspdo.zck');
@@ -1277,11 +1325,24 @@ document.addEventListener('DOMContentLoaded', function() {
     byId('fldExMRN').addEventListener('keyup',function() { 
       byId('fldClearTitle').value = "";
      byId('fldExMRN').style.background = "#ffffff";
-    }, false);
-  
+    }, false);  
   }
   
+  byId('standardModalBacker').style.display = 'block';
+  universalAJAX("POST", "retrieveexclusionlisting", "", dspExclusionList, 1);
 }, false);            
+  
+function dspExclusionList ( rtnData ) { 
+  if ( byId('dataDsp') ) { 
+    var rt = JSON.parse ( rtnData['responseText'] );
+    if ( rt['ITEMSFOUND'] > 0 ) { 
+       byId('dataDsp').innerHTML = rt['DATA'];
+    }
+  }
+  if ( byId('standardModalBacker') ) { 
+    byId('standardModalBacker').style.display = 'none';
+  }
+}
   
 function sendExclusionRqst() { 
    generateDialog('waiterthis');
@@ -1532,6 +1593,7 @@ function chngConsentQuestions ( rtnData ) {
 
 
 function generateDialog ( whichdialog, passedData = "" ) {
+  closeThisDialog(thisDspDialogId)
   thisDspDialogId = ""; 
   var pdta = new Object();  
   pdta['dialog'] = whichdialog;
@@ -1570,8 +1632,10 @@ function dspDialog( rtnData ) {
 }
 
 function closeThisDialog(dlog) {
+  if ( byId(dlog) ) {
    byId(dlog).parentNode.removeChild(byId(dlog));
-   byId('standardModalBacker').style.display = 'none';
+  }
+  byId('standardModalBacker').style.display = 'none';
 }
 
 JAVASCR;
@@ -1831,7 +1895,6 @@ function btoathisfile(btoadsp, passedfile) {
 JAVASCR;
     return $rtnThis;
   }
-
 
   function donorlookup ( $rqststr ) {
     $tt = treeTop;
