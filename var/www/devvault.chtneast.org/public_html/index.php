@@ -18,7 +18,16 @@
 *
 * UPDATE TABLE STUFF
 * ALTER TABLE `ORSCHED`.`srchrequests` ADD COLUMN `clearTitleRslt` LONGTEXT NULL AFTER `onwhen`;
-*
+
+
+*CREATE TABLE `ut_informed_consents_answers` (
+  `icid` int(11) NOT NULL,
+  `answerid` int(11) NOT NULL AUTO_INCREMENT,
+  `qid` varchar(45) DEFAULT NULL,
+  `qtxt` varchar(200) DEFAULT NULL,
+  `answertxt` longtext,
+  PRIMARY KEY (`answerid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 *
  */
 
@@ -278,10 +287,9 @@ class datadoers {
     function saveconsentdocument ( $request, $passedData ) { 
       $responseCode = 503;  
       $vuser = new vaultuser();
-      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
+      $errorInd = 0;
       if ( (int)$vuser->responsecode === 200 ) { 
           $pdta = json_decode($passedData, true); 
-          //{\"fldDonorFName\":\"z\",\"fldDonorLName\":\"z\",\"fldCHTNList\":\"z\",\"fldDnrAge\":\"z\",\"fldDnrAgeUOM\":\"\",\"fldDnrRace\":\"\",\"fldDnrSex\":\"\",\"fldIFName\":\"z\",\"fldILName\":\"z\",\"fldProcDte\":\"12\\/20\\/2019\",\"ansQ1.1\":\"Yes\",\"ansQ1.2\":\"Yes\",\"ansQ1.3\":\"Yes\",\"ansQ1.4\":\"Yes\",\"ansQ1.5\":\"12\\/09\\/2019\",\"consentfile\"
           foreach ( $pdta as $key => $value ) {
               if ( !cryptservice($key,'d') ) { 
                  $locarr[ $key ] = $value; 
@@ -289,19 +297,74 @@ class datadoers {
                  $locarr[ cryptservice($key,'d') ] = chtndecrypt( $value );
               }
           }
-          //TODO: DATA CHECKS
-          //TODO: CHECK ALL FIELDS
-          //TODO:  CHECK CONSENT NOT UPLOADED BEFORE          
-          require( serverkeys . '/sspdo.zck');
-          $insSQL = "insert into ORSCHED.ut_informed_consents ("
-                                                                                                 . "donorfname"
-                                                                                                 . ", donorlname"
-                                                                                                 . ", chtnnbrlist, age, ageuom, race, sex, rqstrfname, rqstrlname, anticprocdate, consentdoc"
-                                                                                                 . ", documentstring) values(:donorfname, :donorlname, :chtnnbrlist, :age, :ageuom, :race, :sex, :rqstrfname, :rqstrlname, :anticprocdate, :consentdoc, :docstring)";
-          $insRS = $conn->prepare($insSQL); 
-          //$insRS->execute(array(':donorfname' => $locarr['fldDonorFName'], ':donorlname' => $locarr['fldDonorlName'], ':chtnnbrlist' => $locarr['fldCHTNList'], ':age' => $locarr['fldDnrAge'], ':ageuom' => $locarr['fldDnrAgeUOM'], ':race' => $locarr['fldDnrRace'], ':sex' => $locarr['fldDnrSex'], ':rqstrfname' => $locarr['']       ':docstring' => $locarr['consentfile']));          
-          $dta = "ZZZZZ";
-          //$dta = $conn->lastInsertId();
+
+          ( !array_key_exists('fldDonorFName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorFName' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDonorLName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorLName' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDonorMRN', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorMRN' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDnrAge', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDnrAge' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDnrAgeUOM', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDnrAgeUOM' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDnrRace', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDnrRace' DOES NOT EXIST.")) : "";
+          ( !array_key_exists('fldDnrSex', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDnrSex' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldIFName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldIFName' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldILName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldILName' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldProcDte', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldProcDte' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('consentdoc', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'consentdoc' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('consentfile', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'consentfile' DOES NOT EXIST.")) : ""; 
+
+          if ( $errorInd === 0 ) {
+             ( trim($locarr['fldDonorFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S FIRST NAME MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['fldDonorLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S LAST NAME MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['fldDnrAge']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S AGE MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['fldDnrRace']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S RACE MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['fldDnrSex']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S SEX MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['consentdoc']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE CONSENT DOCUMENT MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['consentfile']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"A PDF FILE MUST BE UPLOADED.")) : "";
+
+             if ( trim($locarr['fldProcDte']) !== "" ) { 
+               ( !ssValidateDate(trim($locarr['fldProcDte']),'m/d/Y' )) ? (list( $errorInd, $msgArr[] ) = array(1 , "WHEN SUPPLYING A PROCEDURE DATE IT MUST BE IN THE FORMAT mm/dd/YYYY")) : "";
+
+             }
+
+             $qAnsInd = 0;
+             foreach ( $locarr as $key => $value ) {
+               if ( substr( $key, 0, 4) === "ansQ" && trim($value) === "" && $qAnsInd === 0 ) {  
+                   $msgArr[] = "ALL CONSENT DOCUMENT QUESTIONS MUST BE ANSWERED.";
+                   $errorInd = 1;
+                   $qAnsInd = 1;
+               }
+               if ( substr( $key,0,4) === "ansQ" && trim($value) !== "" ) {
+                  $qPrt = explode('_',preg_replace('/^ans/','',$key)); 
+                  if ( $qPrt[1] === 'txd' ) { 
+                      ( !ssValidateDate(trim($value),'m/d/Y' )) ? (list( $errorInd, $msgArr[] ) = array(1 , "ALL CONSENT QUESTIONS ANSWERS CONTAINING A DATE MUST BE IN FORMAT mm/dd/YYYY")) : "";
+                  }
+               }
+             }
+
+            if ( $errorInd === 0 ) {
+              require( serverkeys . '/sspdo.zck');
+              $insSQL = "insert into ORSCHED.ut_informed_consents (selector, donorfname, donorlname, mrn, age, ageuom, race, sex, rqstrfname, rqstrlname, anticprocdate, consentdoctype, uploadby, uploadon) values (:selector, :donorfname, :donorlname, :mrn, :age, :ageuom, :race, :sex, :rqstrfname, :rqstrlname, :anticprocdate, :consentdoctype, :uploadby, now())";
+              $insRS = $conn->prepare($insSQL); 
+              $selector = generateRandomString(25);
+              $anticProcDate = ( trim($locarr['fldProcDte']) === ""  ) ? '01/01/1900' : trim($locarr['fldProcDte']);
+              $insRS->execute(array(':selector' =>  $selector, ':donorfname' => trim($locarr['fldDonorFName']), ':donorlname' =>  trim($locarr['fldDonorLName']), ':mrn' => trim($locarr['fldDonorMRN']),':age' =>  trim($locarr['fldDnrAge']), ':ageuom' =>  trim($locarr['fldDnrAgeUOM']) , ':race' =>  trim($locarr['fldDnrRace']), ':sex' =>  trim($locarr['fldDnrSex']), ':rqstrfname' =>  trim($locarr['fldIFName']), ':rqstrlname' => trim($locarr['fldILName']), ':anticprocdate' => date('Y-m-d',strtotime( $anticProcDate )), ':consentdoctype' =>  trim($locarr['consentdoc']), ':uploadby' => $vuser->userid));
+              $icid = $conn->lastInsertId(); 
+              $docInsSQL = "insert into ORSCHED.ut_informed_consents_documents(icid, documentstring) values(:icid, :documentstring)";
+              $docInsRS = $conn->prepare($docInsSQL); 
+              $docInsRS->execute(array(':icid' => $icid, ':documentstring' => $locarr['consentfile'])); 
+ 
+              $ansInsSQL = "insert into ORSCHED.ut_informed_consents_answers (icid, qid, qtxt, answertxt) values(:icid, :qid, :qtxt, :answertxt)";
+              $ansInsRS = $conn->prepare($ansInsSQL);
+              foreach ( $locarr as $key => $value ) {
+                if ( substr( $key,0,4) === "ansQ" && trim($value) !== "" ) {
+                  $qPrt = explode('_',preg_replace('/^ans/','',$key));
+                  $cqDta = json_decode(callrestapi("GET", dataTreeSS . "/vault-consent-doc-questions-text/" . $qPrt[0], serverIdent, serverpw, ""), true);
+                  $ansInsRS->execute(array(':icid' => $icid, ':qid' => $qPrt[0], ':qtxt' => $cqDta['DATA'][0]['dspvalue'], ':answertxt' => $value));
+               }
+             }
+              
+             $responseCode = 200;
+            }
+          }
       }  else { 
           $dta = "USER NOT ALLOWED";
       }  
@@ -699,7 +762,7 @@ class datadoers {
 <div id=PNDPRTitle>UPHS DONORS OPT-OUT BIOSAMPLE SAMPLE COLLECTION - DO NOT COLLECT!</div>
 <div id=resultCnt>Individual(s) Found: {$itemsfound}</div>    
 <div id=dspWorkBenchTbl>
-<table>
+<table cellspacing=0 cellpadding=0>
 DSPTHIS;
       if ( $itemsfound > 0 ) { 
           //BUILD TABLE
@@ -1819,12 +1882,16 @@ JAVASCR;
     return $rtnThis;
   }
 
+//{"MESSAGE":"q1.1","ITEMSFOUND":1,"DATA":[{"menuvalue":"Q1.1_yn","dspvalue":"Allow to collect, store and distribute tissue?","additionalInformation":"YN"}]}
+
+
   function consentwatch ( $rqststr ) { 
     $tt = treeTop;
     $eMod = eModulus;
     $eExpo = eExponent;
     $fldDFName = cryptservice('fldDonorFName','e');
     $fldDLName = cryptservice('fldDonorLName','e');
+    $fldDMRN = cryptservice('fldDonorMRN','e');
     $fldCHTNList = cryptservice('fldCHTNList','e');
 
     $fldDAge = cryptservice('fldDnrAge','e');
@@ -1857,11 +1924,14 @@ function consentcancel() {
   location.reload(true);
 }
 
+
+//pdta['{$fldCHTNList}'] = window.btoa( encryptedString ( key, byId('fldCHTNList').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+
 function consentwatchsave() { 
   var pdta = new Object();  
   pdta['{$fldDFName}'] = window.btoa( encryptedString ( key, byId('fldDonorFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldDLName}'] = window.btoa( encryptedString ( key, byId('fldDonorLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
-  pdta['{$fldCHTNList}'] = window.btoa( encryptedString ( key, byId('fldCHTNList').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDMRN}'] = window.btoa( encryptedString ( key, byId('fldDonorMRN').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldDAge}'] = window.btoa( encryptedString ( key, byId('fldDnrAge').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldDAgeUOM}'] = window.btoa( encryptedString ( key, byId('qryAgeUOMValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
   pdta['{$fldDRace}'] = window.btoa( encryptedString ( key, byId('qryRaceValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
@@ -1881,7 +1951,18 @@ function consentwatchsave() {
 }
   
 function updateConsentResponse( rtnData ) {
-   console.log ( rtnData );  
+      var r = JSON.parse(rtnData['responseText']);
+      if ( parseInt(r['RESPONSECODE']) !== 200 ) {
+        var msg = r['MESSAGE'];
+        var dspMsg = "";
+        msg.forEach(function(element) {
+          dspMsg += "\\n - "+element;
+        });
+        alert(dspMsg);
+      } else {
+        alert('Informed Consent Document Saved to Database');     
+        location.reload(true);
+      }
 }
   
 function btoathisfile(btoadsp, passedfile) {
@@ -2025,7 +2106,6 @@ JAVASCR;
   }      
       
   function acknowledgepxisend( rtnData ) { 
-      console.log( rtnData );
       var r = JSON.parse(rtnData['responseText']);
       if ( parseInt(r['RESPONSECODE']) !== 200 ) {
         var msg = r['MESSAGE'];
@@ -2376,18 +2456,18 @@ PGCONTENT;
 <p>
 <div class=cwSectionHeader>Donor Information</div>
 <div id=elementlineOne>
-  <div class=element><div class=elementLabel>Donor First Name</div><div class=elemental><input type=text id=fldDonorFName></div></div>
-  <div class=element><div class=elementLabel>Donor Last Name</div><div class=elemental><input type=text id=fldDonorLName></div></div>
-  <div>&nbsp;</div>
+  <div class=element><div class=elementLabel>Donor First Name *</div><div class=elemental><input type=text id=fldDonorFName></div></div>
+  <div class=element><div class=elementLabel>Donor Last Name *</div><div class=elemental><input type=text id=fldDonorLName></div></div>
+  <div class=element><div class=elementLabel>Donor MRN</div><div class=elemental><input type=text id=fldDonorMRN></div></div>
 </div>
 <div id=elementlineFour>
-  <div class=element><div class=elementLabel>Donor Age</div><div class=elemental><table border=0 cellspacing=0 cellpadding=0><tr>
+  <div class=element><div class=elementLabel>Donor Age *</div><div class=elemental><table border=0 cellspacing=0 cellpadding=0><tr>
       <td><div class=element><input type=text id=fldDnrAge value="" style="width: 2vw; text-align: right;"></div></td>
       <td style="padding: 0 0 0 2px;"><div class=element>{$aMenu}</div></td>
     </tr>
     </table></div></div>
-  <div class=element><div class=elementLabel>Donor Race</div><div class=elemental>{$rMenu}</div></div>
-  <div class=element><div class=elementLabel>Donor Sex</div><div class=elemental>{$sMenu}</div></div>
+  <div class=element><div class=elementLabel>Donor Race *</div><div class=elemental>{$rMenu}</div></div>
+  <div class=element><div class=elementLabel>Donor Sex *</div><div class=elemental>{$sMenu}</div></div>
 </div>
 <p>
 <div class=cwSectionHeader>Surgeon/Investigator</div>
@@ -2397,17 +2477,17 @@ PGCONTENT;
   <div class=element><div class=elementLabel>Anticipated Procedure Date</div><div class=elemental><input type=text id=fldProcDte></div><div style="font-size: .8vh;">(Format: mm/dd/yyyy)</div></div>
 </div>
 <p>
-<div class=cwSectionHeader>Document Metrics</div>
+<div class=cwSectionHeader>Document Questions *</div>
 <div id=elementlineThree>
   <div class=elementmenu>
     <div class=elementLabel>Consent Document</div>
-    <div class=elemental><input type=hidden id=cDocVal value={$cdocdftval}><input type=text id=cDoc value="{$cdocdftdsp}"></div>
+    <div class=elemental><input type=hidden id=cDocVal value={$cdocdftval}><input type=text id=cDoc value="{$cdocdftdsp}" READONLY></div>
     <div class=optionlisting style="width: 34vw;">{$cDocMnu}</div>
   </div>
   <div id=consentquestions>{$consentQList}</div>
 </div>
 <p>
-<div class=cwSectionHeader>Upload File</div>
+<div class=cwSectionHeader>Upload File *</div>
 <div>
   <div>Choose a File</div>
   <div><input type="file" name="file" id="file" class="inputfile" accept=".pdf" onchange="btoathisfile('btoIConsent', this.files[0]);" /><TEXTAREA id="btoIConsent" style="display: none;"></textarea></div>
@@ -2420,10 +2500,21 @@ PGCONTENT;
 UPLOADSIDE;
 
 
+
+
+      $consentListing = <<<ICLISTING
+HERE'S THE LIST OF INFORMED CONSENTS IN THE SYSTEMS
+
+
+
+ICLISTING;
+
+
+
     $rt = <<<PGCONTENT
 <div id=pgHolder>
 <div id=uploadSide>{$uploadside}</div>
-<div id=consentDspSide>Consent Display</div>
+<div id=consentDspSide>{$consentListing}</div>
 </div>
 PGCONTENT;
 return $rt;
@@ -2538,6 +2629,13 @@ $rtnThis = <<<STYLESHEET
 #warningbar { background: rgba({$this->color_bred},.8); font-size: 2.2vh; text-align: center; color: rgba({$this->color_white},1); font-weight: bold; padding: 1vh 0; width: 95vw;   } 
 
 #donorClearTitleStatusDsp { width: 40vw; font-size: 1.8vh; text-align: justify; line-height: 1.6em; padding: 1vh 1vw;  } 
+
+
+#PNDPRTitle { border-bottom: 1px solid rgba({$this->color_zackgrey},1); text-align: center; font-family: Roboto;  font-size: 2vh; padding-top: 1vh; }
+#resultCnt { font-family: Roboto; font-size: 1.4vh;   }
+#dspWorkBenchTbl table { font-family: Roboto; font-size: 1.4vh; }  
+#dspWorkBenchTbl table tr:nth-child( even ) { background: rgba({$this->color_grey},.7); }
+#dspWorkBenchTbl table tr td { padding: .8vh .6vw .8vh .2vw; border-bottom: 1px solid rgba({$this->color_grey},1); border-right: 1px solid rgba({$this->color_grey},1);   }
 
 
 STYLESHEET;
