@@ -2448,8 +2448,6 @@ PGCONTENT;
         }
       }
 
-
-    //<div class=elementwithbtn><div class=elementLabel>CHTN # (Comma seperated)</div><div class=elemental><input type=text id=fldCHTNList></div></div>
     $uploadside = <<<UPLOADSIDE
 <div id=cwTitle>Upload Consent Form</div>
 <div id=cwDirections>Fill out the form below.  This will add the donor to the 'Consent Watch List' unless you list CHTN Biogroup Numbers.  If you list CHTN Numbers, those numbers will be marked 'Informed Consent YES' in the ScienceServer Database.  </div>
@@ -2500,11 +2498,41 @@ PGCONTENT;
 UPLOADSIDE;
 
 
-
+      $icdsrchopt = json_decode (callrestapi("GET", dataTreeSS . "/global-menu/icd-doc-search-options",serverIdent, serverpw,""), true);
+            if ( (int)$icdsrchopt['ITEMSFOUND'] > 0 ) { 
+              //BUILD MENU
+              $icdsrch = "<table border=0 class=menuDropTbl>";
+              //<tr><td align=right onclick=\"fillField('qryICDocSrch','','');\" class=ddMenuClearOption>[clear]</td></tr>
+              $defaultvalue = "";
+              $defaultcode = "";
+              foreach ($icdsrchopt['DATA'] as $icval) { 
+                if ( (int)$icval['useasdefault'] === 1 )  {
+                    $defaultvalue = $icval['menuvalue'];
+                    $defaultcode = $icval['lookupvalue'];
+                }
+                $icdsrch .= "<tr><td onclick=\"fillField('qryICDocSrch','{$icval['lookupvalue']}','{$icval['menuvalue']}');\" class=ddMenuItem>{$icval['menuvalue']}</td></tr>";
+              }
+              $icdsrch .= "</table>";
+              $icdsrchfld = "<div class=menuHolderDiv><input type=hidden id=qryICDocSrchValue value=\"{$defaultcode}\"><input type=text id=qryICDocSrch READONLY class=\"inputFld\" style=\"width: 7vw;\" value=\"{$defaultvalue}\"><div class=valueDropDown style=\"min-width: 7vw;\">{$icdsrch}</div></div>";
+      } else { 
+        //TODO: BUILD ERROR
+      }
 
       $consentListing = <<<ICLISTING
-HERE'S THE LIST OF INFORMED CONSENTS IN THE SYSTEMS
-
+ <div id=ICDocDsp>
+ <div id=ICDTitle>Informed Consent Watch</div>
+ <div align=right>
+    <table><tr>
+            <td>{$icdsrchfld}</td>              
+            <td><input type=text></td>
+            <td><button>Search</button></td></tr></table>
+ </div>
+ <div id=ICDRsltGrid>
+     <div>Last 100 Uploaded</div>
+ </div>    
+              
+              
+ </div>
 
 
 ICLISTING;
@@ -2793,6 +2821,9 @@ STYLESHEET;
 .cqQstn { padding: .5vh 0 .5vh .3vw; } 
 .cqLine:nth-child(even) { background: rgba({$this->color_grey},.4); } 
 .cqQstn { font-size: 1.3vh; color: rgba({$this->color_zackgrey},1); } 
+
+#ICDocDsp { padding: .3vh .5vw;  font-size: 1.5vh;  } 
+#ICDocDsp #ICDTitle { font-size: 2.5vh; font-weight: bold; color: rgba({$this->color_zackgrey},1); text-align: center; } 
 
 stylesheets;
     return $rtnThis;
