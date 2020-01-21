@@ -748,6 +748,19 @@ class datadoers {
       return $rows;                      
     }
 
+    function consentdocumentsearch ( $request, $passedData ) { 
+      require( serverkeys . '/sspdo.zck');
+      $responseCode = 503; 
+      $itemsfound = 0;
+
+
+
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => $itemsfound,  'DATA' => $dta);
+      return $rows;                 
+    }
+
     function retrieveexclusionlisting ( $request, $passedData ) { 
       require( serverkeys . '/sspdo.zck');
       $responseCode = 503; 
@@ -2513,22 +2526,26 @@ UPLOADSIDE;
                 $icdsrch .= "<tr><td onclick=\"fillField('qryICDocSrch','{$icval['lookupvalue']}','{$icval['menuvalue']}');\" class=ddMenuItem>{$icval['menuvalue']}</td></tr>";
               }
               $icdsrch .= "</table>";
-              $icdsrchfld = "<div class=menuHolderDiv><input type=hidden id=qryICDocSrchValue value=\"{$defaultcode}\"><input type=text id=qryICDocSrch READONLY class=\"inputFld\" style=\"width: 7vw;\" value=\"{$defaultvalue}\"><div class=valueDropDown style=\"min-width: 7vw;\">{$icdsrch}</div></div>";
+              $icdsrchfld = "<div class=menuHolderDiv><input type=hidden id=qryICDocSrchValue value=\"{$defaultcode}\"><input type=text id=qryICDocSrch READONLY class=\"inputFld\" value=\"{$defaultvalue}\"><div class=valueDropDown style=\"min-width: 7vw;\">{$icdsrch}</div></div>";
       } else { 
         //TODO: BUILD ERROR
       }
+
+      $icdRslt = callrestapi("POST", dataTree . "/data-service/consent-document-search",serverIdent, serverpw,"");  
+
 
       $consentListing = <<<ICLISTING
  <div id=ICDocDsp>
  <div id=ICDTitle>Informed Consent Watch</div>
  <div align=right>
-    <table><tr>
+    <table border=0><tr>
             <td>{$icdsrchfld}</td>              
-            <td><input type=text></td>
+            <td><input type=text id=qryICDocTerm></td>
             <td><button>Search</button></td></tr></table>
  </div>
  <div id=ICDRsltGrid>
-     <div>Last 100 Uploaded</div>
+     <div id=typeOfICDSearch>Last 100 Uploaded</div>
+     <div id=rsltOfICDSearch>{$icdRslt}</div>
  </div>    
               
               
@@ -2824,6 +2841,10 @@ STYLESHEET;
 
 #ICDocDsp { padding: .3vh .5vw;  font-size: 1.5vh;  } 
 #ICDocDsp #ICDTitle { font-size: 2.5vh; font-weight: bold; color: rgba({$this->color_zackgrey},1); text-align: center; } 
+
+#qryICDocSrch { width: 15vw; }
+#qryICDocTerm { width: 30vw; } 
+
 
 stylesheets;
     return $rtnThis;
