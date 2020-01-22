@@ -752,9 +752,35 @@ class datadoers {
       require( serverkeys . '/sspdo.zck');
       $responseCode = 503; 
       $itemsfound = 0;
-
-
-
+      $pdta = json_decode($passedData,true);     
+      //MENU OPTIONS FOR 'INFORMEDCONSENTWATCHSEARC' MENU
+      $dtaSQL = "SELECT icid, selector, ucase(concat(ifnull(donorlname,''),', ', ifnull(donorfname,''))) as donorname, mrn, age, race, sex, if( ifnull(rqstrlname,'') ='','',concat(ifnull(rqstrlname,''),', ', ifnull(rqstrfname,''))) as rqstname, date_format(anticprocdate,'%m/%d/%Y') as anticprocdate, date_format(uploadon,'%m/%d/%Y') as uploaddate, consentdoctype FROM ORSCHED.ut_informed_consents";
+      switch ( $pdta['typeOfConsentSearch'] ) { 
+          case 'lastupload':
+              $dtaSQL .= " where dspind = 1 order by icid desc limit 100";
+              break;
+          case 'chtnnbr':
+              
+              break;
+          case 'lastname':
+              
+              break;
+          case 'rqstr':
+              
+              break;
+          case 'procdate':
+              
+              break;
+      }
+      $dtaRS = $conn->prepare($dtaSQL);
+      $dtaRS->execute();
+      
+      $itemsfound = $dtaRS->rowCount();
+      while ( $r = $dtaRS->fetch(PDO::FETCH_ASSOC)) { 
+          $dta['donorlisting'][] = $r;
+          $responseCode = 200;
+          $dta['typeOfSearch'] = 'Last 100 Uploaded Consents';
+      }
       $msg = $msgArr;
       $rows['statusCode'] = $responseCode; 
       $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => $itemsfound,  'DATA' => $dta);
@@ -2442,7 +2468,7 @@ PGCONTENT;
                   $ynMnu = "<table border=0 class=menuDropTbl>";
                   $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}','1','Yes');\" class=ddMenuItem>Yes</td></tr>";
                   $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}','0','No');\" class=ddMenuItem>No</td></tr>";
-                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}','3','illegible/No Specified');\" class=ddMenuItem>illegible/No Specified</td></tr>";
+                  $ynMnu .= "<tr><td onclick=\"fillField('ans{$cqv['menuvalue']}','3','illegible/Not Specified');\" class=ddMenuItem>illegible/Not Specified</td></tr>";
                   $ynMnu .= "</table>";
 
                   $ansElemt = "<div><div class=elementmenu> <div class=elemental><input type=text id=\"ans{$cqv['menuvalue']}\" value=\"\" style=\"width: 8vw;\" READONLY><div class=optionlisting style=\"width: 8vw;\">{$ynMnu}</div></div></div></div>";  
@@ -2531,9 +2557,22 @@ UPLOADSIDE;
         //TODO: BUILD ERROR
       }
 
-      $icdRslt = callrestapi("POST", dataTree . "/data-service/consent-document-search",serverIdent, serverpw,"");  
-
-
+      $pdta = json_encode(array('typeOfConsentSearch' => 'lastupload' )); //DEFAULT last 100 uploaded Documents
+      $icdRslt = json_decode(callrestapi("POST", dataTree . "/data-doers/consent-document-search",serverIdent, serverpw,$pdta), true);
+      //{"RESPONSECODE":200,"MESSAGE":null,"ITEMSFOUND":0,"DATA":{"donorlisting":[{"icid":23,"selector":"FEcM4eZ21Fu58X5WlukYmUEKX","donorname":"VON MENCHHOFEN, ZACHERY","mrn":"123456789","age":"50","race":"WHITE","sex":"M","rqstname":"","anticprocdate":"01\/01\/1900","uploaddate":"01\/10\/2020","consentdoctype":"CHTNEastern Consent"}],"typeOfSearch":"Last 100 Uploaded Consents"}}
+       $icdRsltType = "UNKNOWN";
+       if ( (int)$icdRslt['RESPONSECODE'] === 200 ) { 
+            $icdRsltType = $icdRslt['DATA']['typeOfSearch'] . " ({$icdRslt['ITEMSFOUND']} donor(s) found)";
+            if ( (int)$icdRslt['ITEMSFOUND'] > 0 ) { 
+               $icdRsltTbl = "<table border=1>";
+               foreach ( $icdRslt['DATA']['donorlisting'] as $k => $v) { 
+                 $aprocDte = ( trim($v['anticprocdate']) === '01/01/1900' ) ? "-" : $v['anticprocdate'];  
+                 $icdRsltTbl .= "<tr><td>{$v['consentdoctype']}</td><td>{$v['donorname']}</td><td>{$v['mrn']}</td><td>{$v['age']}/{$v['race']}/{$v['sex']}</td><td>{$v['uploaddate']}</td><td>{$aprocDte}</td><td>{$v['rqstname']}</td></tr>";                   
+               }                                           
+               $icdRsltTbl .= "</table>"; 
+            }
+       }
+       
       $consentListing = <<<ICLISTING
  <div id=ICDocDsp>
  <div id=ICDTitle>Informed Consent Watch</div>
@@ -2544,8 +2583,8 @@ UPLOADSIDE;
             <td><button>Search</button></td></tr></table>
  </div>
  <div id=ICDRsltGrid>
-     <div id=typeOfICDSearch>Last 100 Uploaded</div>
-     <div id=rsltOfICDSearch>{$icdRslt}</div>
+     <div id=typeOfICDSearch>{$icdRsltType}</div>
+     <div id=rsltOfICDSearch>{$icdRsltTbl}</div>
  </div>    
               
               
