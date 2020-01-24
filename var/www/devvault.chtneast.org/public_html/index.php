@@ -303,12 +303,16 @@ class datadoers {
             require( serverkeys . '/sspdo.zck');
             $docSQL = "SELECT icd.documentstring FROM ORSCHED.ut_informed_consents ic left join ORSCHED.ut_informed_consents_documents icd on ic.icid = icd.icid where binary ic.selector = :selector";
             $docRS = $conn->prepare($docSQL);
-            $docRS->execute(array( ':selector' => $locarr['fileselector'] ));
- 
-
-            $dta = $locarr['fileselector'] . " ... " . $docRS->rowCOunt();;
-
-            $responseCode = 200;
+            $docRS->execute(array( ':selector' => $locarr['fileselector']  ));
+            if ( $docRS->rowCount() < 1 ) { 
+              $msgArr[] = 'CONSENT DOCUMENT NOT FOUND';
+            } else {
+              $doc = $docRS->fetch(PDO::FETCH_ASSOC);
+              $dta['pdfstring'] =  $doc['documentstring'];
+              $dta['dialogid'] = generateRandomString();
+              //$dta['dialogid'] = 'XXXDDDXXX';
+              $responseCode = 200;
+            }
           }
       }  else { 
           $dta = "USER NOT ALLOWED";
@@ -786,19 +790,24 @@ class datadoers {
     function consentdocumentsearch ( $request, $passedData ) { 
       require( serverkeys . '/sspdo.zck');
       $responseCode = 503; 
-      $itemsfound = 0;
       $pdta = json_decode($passedData,true);     
       //MENU OPTIONS FOR 'INFORMEDCONSENTWATCHSEARC' MENU
       $dtaSQL = "SELECT icid, selector, ucase(concat(ifnull(donorlname,''),', ', ifnull(donorfname,''))) as donorname, mrn, age, race, sex, if( ifnull(rqstrlname,'') ='','',concat(ifnull(rqstrlname,''),', ', ifnull(rqstrfname,''))) as rqstname, date_format(anticprocdate,'%m/%d/%Y') as anticprocdate, date_format(uploadon,'%m/%d/%Y') as uploaddate, consentdoctype FROM ORSCHED.ut_informed_consents";
       switch ( $pdta['typeOfConsentSearch'] ) { 
           case 'lastupload':
               $dtaSQL .= " where dspind = 1 order by icid desc limit 100";
+              $dtaRS = $conn->prepare($dtaSQL);
+              $dtaRS->execute();              
+              $tos = 'Last 100 Uploaded Consents';
               break;
           case 'chtnnbr':
               
               break;
           case 'lastname':
-              
+              $dtaSQL .= " where dspind = 1 and donorlname like :lname order by donorlname";
+              $dtaRS = $conn->prepare($dtaSQL);
+              $dtaRS->execute( array( ':lname' => "%" . str_replace(" ","%",trim(chtndecrypt($pdta['sterm'])))  . "%")       );              
+              $tos = 'Last Name Search';              
               break;
           case 'rqstr':
               
@@ -807,8 +816,7 @@ class datadoers {
               
               break;
       }
-      $dtaRS = $conn->prepare($dtaSQL);
-      $dtaRS->execute();
+
       
       $itemsfound = $dtaRS->rowCount();
       $dnrCntr = 0;
@@ -822,7 +830,7 @@ class datadoers {
               $dta['donorlisting'][$dnrCntr]['docAnswers'][] = $a;
           }
           $responseCode = 200;
-          $dta['typeOfSearch'] = 'Last 100 Uploaded Consents';
+          $dta['typeOfSearch'] = $tos;
           $dnrCntr++;
       }
       $msg = $msgArr;
@@ -2076,7 +2084,6 @@ function getPDFDoc( selector ) {
 }
 
 function displayConsentDocument( rtnData ) {
-  console.log ( rtnData );
       var r = JSON.parse(rtnData['responseText']);
       if ( parseInt(r['RESPONSECODE']) !== 200 ) {
         var msg = r['MESSAGE'];
@@ -2086,13 +2093,49 @@ function displayConsentDocument( rtnData ) {
         });
         alert(dspMsg);
       } else {
-      
-
-
+        var d = document.createElement('div');
+        d.setAttribute("id", r['DATA']['dialogid']  );
+        d.setAttribute("class","floatingDiv");
+        d.style.width = '80vw';
+        d.style.marginLeft = '-40vw';
+        d.style.left = '50%';
+        d.style.height = '70vh';
+        d.style.marginTop = '-35vh';
+        d.style.top = '50%';
+        d.innerHTML = '<div onclick="closeThisDialog(\''+r['DATA']['dialogid']+'\');">&times; close</div><object data="' + r['DATA']['pdfstring'] + '" style="width: 100%; height: 95%;">';
+        document.body.appendChild(d);
+        byId(r['DATA']['dialogid']).style.display = 'block';  
+        byId('standardModalBacker').style.display = 'block';
       }
 }
 
+  function closeThisDialog( dialogid ) { 
+   byId(dialogid).parentNode.removeChild(byId(dialogid));
+   byId('standardModalBacker').style.display = 'none'; 
+  }
 
+  function ondemandSearchConsent() { 
+    var pdta = new Object();  
+    pdta['typeOfConsentSearch'] = byId('qryICDocSrchValue').value;
+    pdta['sterm'] = window.btoa( encryptedString ( key, byId('qryICDocTerm').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+    var passdata = JSON.stringify ( pdta );
+    universalAJAX("POST", "consent-document-search", passdata, displayConsentList, 1);
+  }
+  
+  function displayConsentList ( rtnData )  {
+      var r = JSON.parse(rtnData['responseText']);
+      if ( parseInt(r['RESPONSECODE']) !== 200 ) {
+        var msg = r['MESSAGE'];
+        var dspMsg = "";
+        msg.forEach(function(element) {
+          dspMsg += "\\n - "+element;
+        });
+        alert(dspMsg);
+      } else {
+        console.log( rtnData );
+      }     
+  }
+  
 JAVASCR;
     return $rtnThis;
   }
@@ -2619,11 +2662,10 @@ PGCONTENT;
 UPLOADSIDE;
 
 
-      $icdsrchopt = json_decode (callrestapi("GET", dataTreeSS . "/global-menu/icd-doc-search-options",serverIdent, serverpw,""), true);
+           $icdsrchopt = json_decode (callrestapi("GET", dataTreeSS . "/global-menu/icd-doc-search-options",serverIdent, serverpw,""), true);
             if ( (int)$icdsrchopt['ITEMSFOUND'] > 0 ) { 
               //BUILD MENU
-              $icdsrch = "<table border=0 class=menuDropTbl>";
-              //<tr><td align=right onclick=\"fillField('qryICDocSrch','','');\" class=ddMenuClearOption>[clear]</td></tr>
+              $icdsrch = "<table border=0 class=menuDropTbl>";           
               $defaultvalue = "";
               $defaultcode = "";
               foreach ($icdsrchopt['DATA'] as $icval) { 
@@ -2639,9 +2681,8 @@ UPLOADSIDE;
         //TODO: BUILD ERROR
       }
 
-      $pdta = json_encode(array('typeOfConsentSearch' => 'lastupload' )); //DEFAULT last 100 uploaded Documents
-      $icdRslt = json_decode(callrestapi("POST", dataTree . "/data-doers/consent-document-search",serverIdent, serverpw,$pdta), true);
-      //{"RESPONSECODE":200,"MESSAGE":null,"ITEMSFOUND":0,"DATA":{"donorlisting":[{"icid":23,"selector":"FEcM4eZ21Fu58X5WlukYmUEKX","donorname":"VON MENCHHOFEN, ZACHERY","mrn":"123456789","age":"50","race":"WHITE","sex":"M","rqstname":"","anticprocdate":"01\/01\/1900","uploaddate":"01\/10\/2020","consentdoctype":"CHTNEastern Consent"}],"typeOfSearch":"Last 100 Uploaded Consents"}}
+       $pdta = json_encode(array('typeOfConsentSearch' => 'lastupload' )); //DEFAULT last 100 uploaded Documents
+       $icdRslt = json_decode(callrestapi("POST", dataTree . "/data-doers/consent-document-search",serverIdent, serverpw,$pdta), true);
        $icdRsltType = "UNKNOWN";
        if ( (int)$icdRslt['RESPONSECODE'] === 200 ) { 
             $icdRsltType = $icdRslt['DATA']['typeOfSearch'] . " ({$icdRslt['ITEMSFOUND']} donor(s) found)";
@@ -2655,7 +2696,6 @@ UPLOADSIDE;
                  foreach ( $v['docAnswers'] as $ak => $av ) { 
                    $ansTbl .= "<tr><td>{$av['qtxt']}</td><td>{$av['answertxt']}</td></tr>";
                  }
-
                  $ansTbl .= "</table>";
 
                  $icdRsltTbl .= "<tr>"
@@ -2675,7 +2715,6 @@ UPLOADSIDE;
             }
        }
 
-$d = json_encode( $icdRslt );       
       $consentListing = <<<ICLISTING
  <div id=ICDocDsp>
  <div id=ICDTitle>Informed Consent Watch</div>
@@ -2683,12 +2722,11 @@ $d = json_encode( $icdRslt );
     <table border=0><tr>
             <td>{$icdsrchfld}</td>              
             <td><input type=text id=qryICDocTerm></td>
-            <td><button>Search</button></td></tr></table>
+            <td><button onclick="ondemandSearchConsent();">Search</button></td></tr></table>
  </div>
  <div id=ICDRsltGrid>
      <div id=typeOfICDSearch>{$icdRsltType}</div>
      <div id=rsltOfICDSearch>{$icdRsltTbl}</div>
-     {$d}
  </div>    
               
               
