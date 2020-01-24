@@ -284,6 +284,41 @@ class dataposters {
 
 class datadoers {
 
+    function getconsentdocument ( $request, $passedData )  { 
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      $errorInd = 0;
+      if ( (int)$vuser->responsecode === 200 ) { 
+          $pdta = json_decode($passedData, true); 
+          foreach ( $pdta as $key => $value ) {
+              if ( !cryptservice($key,'d') ) { 
+                 $locarr[ $key ] = $value; 
+              } else { 
+                 $locarr[ cryptservice($key,'d') ] = chtndecrypt( $value );
+              }
+          }
+          ( !array_key_exists('fileselector', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fileselector' DOES NOT EXIST.")) : ""; 
+
+          if ( $errorInd === 0 ) {  
+            require( serverkeys . '/sspdo.zck');
+            $docSQL = "SELECT icd.documentstring FROM ORSCHED.ut_informed_consents ic left join ORSCHED.ut_informed_consents_documents icd on ic.icid = icd.icid where binary ic.selector = :selector";
+            $docRS = $conn->prepare($docSQL);
+            $docRS->execute(array( ':selector' => $locarr['fileselector'] ));
+ 
+
+            $dta = $locarr['fileselector'] . " ... " . $docRS->rowCOunt();;
+
+            $responseCode = 200;
+          }
+      }  else { 
+          $dta = "USER NOT ALLOWED";
+      }  
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;      
+    }
+ 
     function saveconsentdocument ( $request, $passedData ) { 
       $responseCode = 503;  
       $vuser = new vaultuser();
@@ -776,10 +811,19 @@ class datadoers {
       $dtaRS->execute();
       
       $itemsfound = $dtaRS->rowCount();
+      $dnrCntr = 0;
+      $qSQL = "select  concat(ifnull(qtxt,''),' [', ifnull(qid,''),']') as qtxt, answertxt FROM ORSCHED.ut_informed_consents_answers where icid = :icid";
+      $qRS = $conn->prepare($qSQL);
       while ( $r = $dtaRS->fetch(PDO::FETCH_ASSOC)) { 
-          $dta['donorlisting'][] = $r;
+          $dta['donorlisting'][$dnrCntr] = $r;
+          $qRS->execute(array( ':icid' => $r['icid'] ));
+
+          while ( $a = $qRS->fetch(PDO::FETCH_ASSOC)) { 
+              $dta['donorlisting'][$dnrCntr]['docAnswers'][] = $a;
+          }
           $responseCode = 200;
           $dta['typeOfSearch'] = 'Last 100 Uploaded Consents';
+          $dnrCntr++;
       }
       $msg = $msgArr;
       $rows['statusCode'] = $responseCode; 
@@ -1942,8 +1986,9 @@ JAVASCR;
     $fldILName = cryptservice('fldILName','e');
     $fldProcDte = cryptservice('fldProcDte','e');
 
-    $fldconsent = cryptservice('consentfile','e');    
-    
+    $fldconsent = cryptservice('consentfile','e');   
+    $fileselector = cryptservice('fileselector','e');
+////pdta['{$fldCHTNList}'] = window.btoa( encryptedString ( key, byId('fldCHTNList').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
     $rtnThis = <<<JAVASCR
 
 var key;
@@ -1964,7 +2009,6 @@ function consentcancel() {
 }
 
 
-//pdta['{$fldCHTNList}'] = window.btoa( encryptedString ( key, byId('fldCHTNList').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
 
 function consentwatchsave() { 
   var pdta = new Object();  
@@ -2011,6 +2055,43 @@ function btoathisfile(btoadsp, passedfile) {
     };
     reader.readAsDataURL(passedfile);
 }
+
+function openAnswers( whichicid ) { 
+  var divsToHide = document.getElementsByClassName("answerDisplayer"); //divsToHide is an array
+  for (var i = 0; i < divsToHide.length; i++){
+    divsToHide[i].style.display = "none";
+  }
+  byId(whichicid).style.display = 'block';
+}
+
+function closeAnswers( whichicid ) { 
+  byId('aDisplayer'+whichicid).style.display = 'none';
+}
+
+function getPDFDoc( selector ) { 
+  var pdta = new Object();  
+  pdta['{$fileselector}'] = window.btoa( encryptedString ( key, selector, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  var passdata = JSON.stringify ( pdta );
+  universalAJAX("POST", "get-Consent-Document", passdata, displayConsentDocument, 1);
+}
+
+function displayConsentDocument( rtnData ) {
+  console.log ( rtnData );
+      var r = JSON.parse(rtnData['responseText']);
+      if ( parseInt(r['RESPONSECODE']) !== 200 ) {
+        var msg = r['MESSAGE'];
+        var dspMsg = "";
+        msg.forEach(function(element) {
+          dspMsg += "\\n - "+element;
+        });
+        alert(dspMsg);
+      } else {
+      
+
+
+      }
+}
+
 
 JAVASCR;
     return $rtnThis;
@@ -2157,7 +2238,8 @@ JAVASCR;
         alert('Donor added to today\'s schedule.  Refresh the \'Procure Biogroup\' screen in ScienceServer to see the updated schedule');
       }
    }
-  
+
+
 JAVASCR;
     return $rtnThis;
   }
@@ -2564,15 +2646,36 @@ UPLOADSIDE;
        if ( (int)$icdRslt['RESPONSECODE'] === 200 ) { 
             $icdRsltType = $icdRslt['DATA']['typeOfSearch'] . " ({$icdRslt['ITEMSFOUND']} donor(s) found)";
             if ( (int)$icdRslt['ITEMSFOUND'] > 0 ) { 
-               $icdRsltTbl = "<table border=1>";
+               $icdRsltTbl = "<table border=1><tr><th>Consent Type</th><th>A</th><th>B</th><th>D</th><th>Donor</th><th>MRN</th><th>A/R/S</th><th>Uploaded</th><th>Procedure Date</th><th>Investigator From</th></tr>";
                foreach ( $icdRslt['DATA']['donorlisting'] as $k => $v) { 
-                 $aprocDte = ( trim($v['anticprocdate']) === '01/01/1900' ) ? "-" : $v['anticprocdate'];  
-                 $icdRsltTbl .= "<tr><td>{$v['consentdoctype']}</td><td>{$v['donorname']}</td><td>{$v['mrn']}</td><td>{$v['age']}/{$v['race']}/{$v['sex']}</td><td>{$v['uploaddate']}</td><td>{$aprocDte}</td><td>{$v['rqstname']}</td></tr>";                   
+                 $aprocDte = ( trim($v['anticprocdate']) === '01/01/1900' ) ? "-" : $v['anticprocdate']; 
+                 $rqstr = ( trim($v['rqstname']) === '' ) ? "-" : strtoupper($v['rqstname']);
+ 
+                 $ansTbl = "<table border=1 style=\"width: 30vw;\" ><tr><td colspan=2 align=right onclick=\"closeAnswers('{$v['icid']}');\">&times; close</td></tr>";
+                 foreach ( $v['docAnswers'] as $ak => $av ) { 
+                   $ansTbl .= "<tr><td>{$av['qtxt']}</td><td>{$av['answertxt']}</td></tr>";
+                 }
+
+                 $ansTbl .= "</table>";
+
+                 $icdRsltTbl .= "<tr>"
+                              . "<td>{$v['consentdoctype']}</td>"
+                              . "<td><div class=addInfoHolder><div onclick=\"openAnswers('aDisplayer{$v['icid']}');\"><i class=\"material-icons\">contact_support</i></div><div class=answerDisplayer id='aDisplayer{$v['icid']}'>{$ansTbl}</div></div></td>"
+                              . "<td><div class=addInfoHolder><div><i class=\"material-icons\">extension</i></div><div class=answerDisplayer id='aDisplayer{$v['icid']}'>{$ansTbl}</div></div></td>"
+                              . "<td><div class=addInfoHolder><div onclick=\"getPDFDoc('{$v['selector']}');\"><i class=\"material-icons\">description</i></div><div class=answerDisplayer id='aDisplayer{$v['icid']}'>PDF Doc</div></div></td>"
+                              . "<td>{$v['donorname']}</td>"
+                              . "<td>{$v['mrn']}</td>"
+                              . "<td>{$v['age']}/{$v['race']}/{$v['sex']}</td>"
+                              . "<td>{$v['uploaddate']}</td>"
+                              . "<td>{$aprocDte}</td>"
+                              . "<td>{$rqstr}</td>"
+                              . "</tr>";                   
                }                                           
                $icdRsltTbl .= "</table>"; 
             }
        }
-       
+
+$d = json_encode( $icdRslt );       
       $consentListing = <<<ICLISTING
  <div id=ICDocDsp>
  <div id=ICDTitle>Informed Consent Watch</div>
@@ -2585,6 +2688,7 @@ UPLOADSIDE;
  <div id=ICDRsltGrid>
      <div id=typeOfICDSearch>{$icdRsltType}</div>
      <div id=rsltOfICDSearch>{$icdRsltTbl}</div>
+     {$d}
  </div>    
               
               
@@ -2832,6 +2936,10 @@ input:focus, input:active { background: rgba({$this->color_lamber},.5); border: 
 .ddMenuItem:hover { cursor: pointer;  background: rgba({$this->color_lblue},1); color: rgba({$this->color_white},1);  }
 .ddMenuClearOption { font-size: 1.1vh; }
 .ddMenuClearOption:hover {color: rgba({$this->color_bred},1); }
+
+
+.addInfoHolder { position: relative; } 
+.answerDisplayer {background: rgba({$this->color_white},1);position: absolute; border: 1px solid rgba({$this->color_zackgrey},1); box-sizing: border-box; min-height: 15vh; overflow: auto; display: none; z-index: 25; } 
 
 STYLESHEET;
     return $rtnThis;
