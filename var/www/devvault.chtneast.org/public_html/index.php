@@ -284,6 +284,62 @@ class dataposters {
 
 class datadoers {
 
+    function markmasterrecordconsents ( $request, $passedData ) { 
+      $responseCode = 503;  
+      $vuser = new vaultuser();
+      $errorInd = 0;
+      if ( (int)$vuser->responsecode === 200 ) { 
+          $pdta = json_decode($passedData, true); 
+          foreach ( $pdta as $key => $value ) {
+              if ( !cryptservice($key,'d') ) { 
+                 $locarr[ $key ] = $value; 
+              } else { 
+                 $locarr[ cryptservice($key,'d') ] = chtndecrypt( $value );
+              }
+          }
+          ( !array_key_exists('fileselector', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fileselector' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('bgroupdelimit', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'bgroupdelimit' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('icid', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'icid' DOES NOT EXIST.")) : ""; 
+
+          if ( $errorInd === 0 ) {  
+          
+              ( trim($locarr['fileselector']) === '' ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FILE SELECTOR CANNOT BE EMPTY.")) : "";
+              ( trim($locarr['icid']) === '' ) ? (list( $errorInd, $msgArr[] ) = array(1 , "INFORMED CONSENT ID MUST BE SUPPLIED.")) : "";
+              ( trim($locarr['bgroupdelimit']) === '' ) ? (list( $errorInd, $msgArr[] ) = array(1 , "YOU HAVE NOT SPECIFIED ANY BIOGROUPS.")) : "";
+
+              if ( $errorInd === 0 ) {
+
+                $pdta['vaultuser'] = $vuser->userid; 
+                $passedData = json_encode( $pdta );
+                  
+                $icDta = json_decode( callrestapi("POST", dataTreeSS . "/data-doers/vault-ic-biogroup-update", serverIdent, serverpw, $passedData  ) , true);                       
+                if ( (int)$icDta['RESPONSECODE'] <> 200 ) {
+                  foreach ( $icDta['MESSAGE'] as $mk => $mv ) {    
+                      $msgArr[] = $mv;
+                  }
+                } else {
+                  //SUCCESS FROM MASTERRECORD
+                  require( serverkeys . '/sspdo.zck'); 
+                  $insSQL = "insert into ORSCHED.ut_informed_consents_biogroups (icid, chtnnbr, uploadedon, uploadedby) values (:icid, :chtnnbr, now(), :uploadedby)";
+                  $insRS = $conn->prepare( $insSQL ); 
+                  $bgdlist = explode(',',str_replace(' ','',$locarr['bgroupdelimit']));
+                  foreach ( $bgdlist as $bgv ) {
+                    $bgv = strtoupper($bgv);  
+                    $insRS->execute( array(':icid' => $locarr['icid'], ':chtnnbr' => $bgv, ':uploadedby' => $vuser->userid ));
+                  }
+                  $responseCode = 200;  
+                }
+              }
+          }
+      }  else { 
+          $dta = "USER NOT ALLOWED";
+      }  
+      $msg = $msgArr;
+      $rows['statusCode'] = $responseCode; 
+      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
+      return $rows;      
+    }
+
     function getconsentdocument ( $request, $passedData )  { 
       $responseCode = 503;  
       $vuser = new vaultuser();
@@ -417,9 +473,8 @@ class datadoers {
       $responseCode = 503;  
       $vuser = new vaultuser();
       $errorInd = 0;
-      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
       if ( (int)$vuser->responsecode === 200 ) { 
-        //{"bglist":"[\"88243T\",\"88240T\",\"88241T\",\"88254T\"]","reason":"this is the reason"}    
+      //{"responsecode":200,"userguid":"6ad4cb09-4eb1-44b2-b400-45bf59a4f9d9","userid":"zacheryv@mail.med.upenn.edu","friendlyname":"Zack","oaccount":"proczack","accesslevel":"ADMINISTRATOR","accessnbr":43,"holder":""}
         $pdta = json_decode($passedData, true);
         $newPDta['user'] = $vuser->userid;
         ( !array_key_exists('bglist', $pdta) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'bglist' DOES NOT EXIST.")) : ""; 
@@ -430,7 +485,6 @@ class datadoers {
           if ( $errorInd === 0 ) { 
             $newPDta['bglist'] = $pdta['bglist']; 
             $newPDta['reason'] = trim($pdta['reason']);
-            //{"RESPONSECODE":400,"MESSAGE":["FATAL ERROR:  ARRAY KEY 'user' DOES NOT EXIST.","FATAL ERROR:  ARRAY KEY 'bglist' DOES NOT EXIST.","FATAL ERROR:  ARRAY KEY 'reason' DOES NOT EXIST.",3," .. 88338T"," .. 88339T"," .. 88340T","these are normal foreskins and should not have been procured as pending PR","zacheryv@mail.med.upenn.edu"],"ITEMSFOUND":0,"DATA":null}
             $cqDta = json_decode( callrestapi("POST", dataTreeSS . "/data-doers/vault-mark-pr-no", serverIdent, serverpw, json_encode( $newPDta )  ) , true);                       
             if ( (int)$cqDta['RESPONSECODE'] === 200 ) { 
                 //SUCCESS
@@ -523,7 +577,6 @@ class datadoers {
         foreach ( $pdta as $k => $v ) {
           $locArr[cryptservice( $k, 'd')] = chtndecrypt($v);  
         }
-        //{"fldExFName":"Diane","fldExLName":"mcgarvey","fldExMRN":"23232323","fldExDate":"","fldExNote":""}
         ( !array_key_exists('fldExFName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExFName' DOES NOT EXIST.")) : ""; 
         ( !array_key_exists('fldExLName', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExLName' DOES NOT EXIST.")) : ""; 
         ( !array_key_exists('fldExMRN', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExMRN' DOES NOT EXIST.")) : ""; 
@@ -531,12 +584,8 @@ class datadoers {
         ( !array_key_exists('fldExNote', $locArr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldExNote' DOES NOT EXIST.")) : ""; 
         //TODO:   WRITE A SEARCH TRACKER INSTEAD OF JUST 'CLEAR'
         if ( $errorInd === 0 ) { 
-         //( trim($locArr['fldExFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S FIRST NAME.  PLEASE SUPPLY THIS VALUE")) : ""; 
-         //( trim($locArr['fldExLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S LAST NAME.  PLEASE SUPPLY THIS VALUE")) : "";           
          ( trim($locArr['fldExMRN']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE POTENTIAL DONOR'S MEDICAL RECORD NUMBER (MRN).  PLEASE SUPPLY THIS VALUE")) : "";
-         //( trim($locArr['fldExDate']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "THE SEARCH FUNCTION NEEDS THE DATE OF EXCLUSION/OPT-OUT FOR THIS POTENTIAL DONOR.  PLEASE SUPPLY THIS VALUE")) : "";          
          if ( $errorInd === 0 ) {
-            //( !ssValidateDate( $locArr['fldExDate'], 'm/d/Y') )  ? (list( $errorInd, $msgArr[] ) = array(1 , "Exclusion/Opt-Out Date ({$locArr['fldExDate']}) is not valid!")) : ""; 
             if ( $errorInd === 0 ) {
               //GET ALL REFERENCES TO THIS MRN 
               $chkSQL = "SELECT ORSchdtid as pxiid FROM ORSCHED.ut_zck_ORSchDetail where mrn = :mrn";
@@ -554,7 +603,6 @@ class datadoers {
                   } 
                   $pxilist['pxilist'] = $pxis;
                   $cqDta = json_decode( callrestapi("POST", dataTreeSS . "/data-doers/vault-check-pxiids", serverIdent, serverpw, json_encode( $pxilist )  ) , true);                       
-                  //{"RESPONSECODE":200,"MESSAGE":[],"ITEMSFOUND":3,"DATA":["89242T","89087T","89088T"]}
                   if ( (int)$cqDta['ITEMSFOUND'] < 1 ) {
                     $responseCode = 200;
                   } else {
@@ -801,7 +849,10 @@ class datadoers {
               $tos = 'Last 100 Uploaded Consents';
               break;
           case 'chtnnbr':
-              
+              $dtaSQL = "SELECT distinct ic.icid, selector, ucase(concat(ifnull(donorlname,''),', ', ifnull(donorfname,''))) as donorname, mrn, age, race, sex, if( ifnull(rqstrlname,'') ='','',concat(ifnull(rqstrlname,''),', ', ifnull(rqstrfname,''))) as rqstname, date_format(anticprocdate,'%m/%d/%Y') as anticprocdate, date_format(uploadon,'%m/%d/%Y') as uploaddate, consentdoctype FROM ORSCHED.ut_informed_consents ic left join ORSCHED.ut_informed_consents_biogroups cbg on ic.icid = cbg.icid where cbg.chtnnbr like :chtnnbr";
+              $dtaRS = $conn->prepare($dtaSQL); 
+              $dtaRS->execute( array( ':chtnnbr' => str_replace(" ","%",trim(chtndecrypt($pdta['sterm'])))  . "%"));
+              $tos = 'CHTN Biosample Number Search';              
               break;
           case 'lastname':
               $dtaSQL .= " where dspind = 1 and donorlname like :lname order by donorlname";
@@ -810,28 +861,57 @@ class datadoers {
               $tos = 'Last Name Search';              
               break;
           case 'rqstr':
-              
+              $dtaSQL .= " where dspind = 1 and rqstrlname like :lname order by donorlname";
+              $dtaRS = $conn->prepare($dtaSQL);
+              $dtaRS->execute( array( ':lname' => "%" . str_replace(" ","%",trim(chtndecrypt($pdta['sterm'])))  . "%")       );              
+              $tos = 'Consenter/Investigator Search';              
               break;
           case 'procdate':
-              
+              $dtaSQL .= " where dspind = 1 and date_format(anticprocdate,'%m/%d/%Y') = :pdte order by donorlname";
+              $dtaRS = $conn->prepare($dtaSQL);
+              $dtaRS->execute( array( ':pdte' => trim(chtndecrypt($pdta['sterm']))));              
+              $tos = 'Anticipated Procedure Date Search';               
               break;
       }
 
       
       $itemsfound = $dtaRS->rowCount();
       $dnrCntr = 0;
+
       $qSQL = "select  concat(ifnull(qtxt,''),' [', ifnull(qid,''),']') as qtxt, answertxt FROM ORSCHED.ut_informed_consents_answers where icid = :icid";
       $qRS = $conn->prepare($qSQL);
-      while ( $r = $dtaRS->fetch(PDO::FETCH_ASSOC)) { 
-          $dta['donorlisting'][$dnrCntr] = $r;
-          $qRS->execute(array( ':icid' => $r['icid'] ));
 
-          while ( $a = $qRS->fetch(PDO::FETCH_ASSOC)) { 
+      $bgSQL = "SELECT chtnnbr, uploadedby, date_format(uploadedon,'%m/%d/%Y') as uploadedon FROM ORSCHED.ut_informed_consents_biogroups where icid = :icid";
+      $bgRS = $conn->prepare( $bgSQL ); 
+
+      if ( $dtaRS->rowCount() > 0 ) {
+        while ( $r = $dtaRS->fetch(PDO::FETCH_ASSOC)) { 
+          $dta['donorlisting'][$dnrCntr] = $r;
+
+          $qRS->execute(array( ':icid' => $r['icid'] ));
+          if ( $qRS->rowCount() > 0 ) {
+            while ( $a = $qRS->fetch(PDO::FETCH_ASSOC)) { 
               $dta['donorlisting'][$dnrCntr]['docAnswers'][] = $a;
+            }
+          } else { 
+              $dta['donorlisting'][$dnrCntr]['docAnswers'][] = array( 'qtxt' => '', 'answertxt' => '' );
           }
+
+          $bgRS->execute(array(':icid' => $r['icid']));
+          if ( $bgRS->rowCount() > 0 ) {
+            while ( $b = $bgRS->fetch(PDO::FETCH_ASSOC) ) { 
+              $dta['donorlisting'][$dnrCntr]['bioGroups'][] = $b;
+            }
+          } else { 
+            $dta['donorlisting'][$dnrCntr]['bioGroups'][] = array('chtnnbr' => '', 'uploadedby' => '', 'uploadedon' => '' );
+          }
+
           $responseCode = 200;
           $dta['typeOfSearch'] = $tos;
           $dnrCntr++;
+        }
+      } else { 
+        $msgArr[] = "NO CONSENT DOCUMENTS FOUND MATCHING YOUR CRITERIA";
       }
       $msg = $msgArr;
       $rows['statusCode'] = $responseCode; 
@@ -1659,25 +1739,21 @@ function universalAJAX(methd, url, passedDataJSON, callbackfunc, dspBacker) {
   httpage.send(passedDataJSON);
 }
 
-
-
-
 document.addEventListener('DOMContentLoaded', function() {
-
-document.addEventListener('keypress', function(event) {
-  timeleft = 600;
-}, false);
+  document.addEventListener('keypress', function(event) {
+    timeleft = 600;
+  }, false);
 
 }, false);
 
 var timeleft = 600;
 var downloadTimer = setInterval(function(){
-  document.getElementById("countdown").innerHTML = timeleft + "";
+  byId("countdown").innerHTML = Math.floor ( timeleft / 60 ) + ":" + ( timeleft )      ;
   timeleft -= 1;
   if(timeleft <= 0){
     clearInterval(downloadTimer);
-    //send loggout here
-    document.getElementById("countdown").innerHTML = "Finished"
+    window.location.replace('{$tt}/lgdestroy.php');
+    byId("countdown").innerHTML = "Finished"
   }
 }, 1000);
 
@@ -2016,8 +2092,6 @@ function consentcancel() {
   location.reload(true);
 }
 
-
-
 function consentwatchsave() { 
   var pdta = new Object();  
   pdta['{$fldDFName}'] = window.btoa( encryptedString ( key, byId('fldDonorFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
@@ -2072,8 +2146,44 @@ function openAnswers( whichicid ) {
   byId(whichicid).style.display = 'block';
 }
 
+function openBiogroups( whichicid ) { 
+  var divsToHide = document.getElementsByClassName("answerDisplayer"); //divsToHide is an array
+  for (var i = 0; i < divsToHide.length; i++){
+    divsToHide[i].style.display = "none";
+  }
+  byId(whichicid).style.display = 'block';
+}
+
+
 function closeAnswers( whichicid ) { 
   byId('aDisplayer'+whichicid).style.display = 'none';
+}
+
+function closeBiogroups( whichicid ) { 
+  byId('bDisplayer'+whichicid).style.display = 'none';
+}
+
+function addConsentBiogroup ( selector, icid ) {
+  var pdta = new Object();  
+  pdta['{$fileselector}'] = window.btoa( encryptedString ( key, selector, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['bgroupdelimit'] =   byId('bGroupDelimit'+icid).value.trim();
+  pdta['icid'] =            icid;
+  var passdata = JSON.stringify(pdta);
+  universalAJAX("POST", "mark-masterrecord-consents", passdata, verifymarkconsents, 1);
+}
+
+function verifymarkconsents ( rtnData ) { 
+  var r = JSON.parse(rtnData['responseText']);
+    if ( parseInt(r['RESPONSECODE']) !== 200 ) {
+      var msg = r['MESSAGE'];
+      var dspMsg = "";
+      msg.forEach(function(element) {
+        dspMsg += "\\n - "+element;
+      });
+      alert(dspMsg);
+    } else {
+      alert('ScienceServer Main Database has been updated with consents specified.  To see changes, refresh your screen or re-run your query');
+   }
 }
 
 function getPDFDoc( selector ) { 
@@ -2099,10 +2209,9 @@ function displayConsentDocument( rtnData ) {
         d.style.width = '80vw';
         d.style.marginLeft = '-40vw';
         d.style.left = '50%';
-        d.style.height = '70vh';
         d.style.marginTop = '-35vh';
         d.style.top = '50%';
-        d.innerHTML = '<div onclick="closeThisDialog(\''+r['DATA']['dialogid']+'\');">&times; close</div><object data="' + r['DATA']['pdfstring'] + '" style="width: 100%; height: 95%;">';
+        d.innerHTML = '<div class=closeDialogBar style=\"height: 2vh;\" onclick="closeThisDialog(\''+r['DATA']['dialogid']+'\');">&times; close</div><object data="' + r['DATA']['pdfstring'] + '" style="width: 100%; height: 67vh;">';
         document.body.appendChild(d);
         byId(r['DATA']['dialogid']).style.display = 'block';  
         byId('standardModalBacker').style.display = 'block';
@@ -2123,6 +2232,8 @@ function displayConsentDocument( rtnData ) {
   }
   
   function displayConsentList ( rtnData )  {
+      byId('typeOfICDSearch').innerHTML = "";
+      byId('rsltOfICDSearch').innerHTML = "";
       var r = JSON.parse(rtnData['responseText']);
       if ( parseInt(r['RESPONSECODE']) !== 200 ) {
         var msg = r['MESSAGE'];
@@ -2132,7 +2243,40 @@ function displayConsentDocument( rtnData ) {
         });
         alert(dspMsg);
       } else {
-        console.log( rtnData );
+        byId('typeOfICDSearch').innerHTML = r['DATA']['typeOfSearch'] + " ("+r['ITEMSFOUND']+" donor(s) found)";
+        var icdRsltTbl = "<table border=0 id=icSearchRsltTbl><tr><th>Consent Type</th><th>Ans</th><th>Bio</th><th>Doc</th><th>Donor</th><th>MRN</th><th>A/R/S</th><th>Uploaded</th><th>Procedure Date</th><th>Investigator From</th></tr>";
+
+
+        r['DATA']['donorlisting'].forEach ( function (element) {
+
+          var bioTbl = "<table border=0 style=\"width: 30vw;\" ><tr><td colspan=2 class=closeDialogBar onclick=\"closeBiogroups('"+element['icid']+"');\">&times; close</td></tr>";
+          bioTbl += "<tr><td style=\"background: rgba(255,255,255,1); border: none;\"><div><div class=fieldLabel>CHTN Biogroup (Comma Delimit)</div><div><input type=text id='bGroupDelimit"+element['icid']+"' style='width: 25vw;'><button style=\"margin-left: .3vw;\" onclick=\"addConsentBiogroup('"+element['selector']+"','"+element['icid']+"');\">Attach</button></div></div></td></tr><tr><td class=sectionBar>ATTACHED BIOGROUPS</td></tr>";
+          element['bioGroups'].forEach( function ( bv ) {
+            if ( bv['chtnnbr'].trim() !== "" ) {
+              bioTbl += "<tr><td>"+ bv['chtnnbr'] + " (" +bv['uploadedby']+"::"+bv['uploadedon'] +")</td></tr>";
+            }
+          });
+          bioTbl += "</table>" ;
+
+          var ansTbl = "<table border=0 style=\"width: 30vw;\" ><tr><td colspan=2 class=closeDialogBar onclick=\"closeAnswers('"+element['icid']+"');\">&times; close</td></tr><tr><th>Consent Question</th><th>Answer</th></tr>";
+          element['docAnswers'].forEach( function ( av ) {
+            ansTbl += "<tr><td>"+av['qtxt']+"</td><td>"+av['answertxt']+"</td></tr>";
+          });
+          ansTbl += "</table>";
+
+          var aprocDte = ( element['anticprocdate'].trim() === '01/01/1900' ) ? "-" : element['anticprocdate'];
+          var rqstr = ( element['rqstname'].trim() === '' ) ? "-" : element['rqstname'].trim().toUpperCase();
+
+          icdRsltTbl += "<tr><td>" + element['consentdoctype'] + "</td>"; 
+          icdRsltTbl += "<td><div class=addInfoHolder><div onclick=\"openAnswers('aDisplayer"+ element['icid'] +"');\"><center><i class=\"material-icons\">contact_support</i></div><div class=answerDisplayer id='aDisplayer"+ element['icid'] + "'>"+ansTbl+"</div></div></td>";
+          icdRsltTbl += "<td><div class=addInfoHolder><div onclick=\"openBiogroups('bDisplayer"+ element['icid'] +"');\"><center><i class=\"material-icons\">extension</i></div><div class=answerDisplayer id='bDisplayer"+element['icid'] + "'>"+bioTbl+"</div></div></td>"
+          icdRsltTbl += "<td><div class=addInfoHolder><div onclick=\"getPDFDoc('"+element['selector']+"');\"><center><i class=\"material-icons\">description</i></div><div class=answerDisplayer id='aDisplayer"+element['icid']+"'>PDF Doc</div></div></td>";
+          icdRsltTbl += "<td>"+element['donorname']+"</td><td>"+element['mrn']+"</td><td>"+element['age']+"/"+element['race']+"/"+element['sex']+"</td><td>"+element['uploaddate']+"</td><td>"+aprocDte+"</td><td>"+rqstr+"</td>";
+          icdRsltTbl += "</tr>";
+        });
+
+        icdRsltTbl += "</table>";
+        byId('rsltOfICDSearch').innerHTML = icdRsltTbl;
       }     
   }
   
@@ -2687,12 +2831,21 @@ UPLOADSIDE;
        if ( (int)$icdRslt['RESPONSECODE'] === 200 ) { 
             $icdRsltType = $icdRslt['DATA']['typeOfSearch'] . " ({$icdRslt['ITEMSFOUND']} donor(s) found)";
             if ( (int)$icdRslt['ITEMSFOUND'] > 0 ) { 
-               $icdRsltTbl = "<table border=1><tr><th>Consent Type</th><th>A</th><th>B</th><th>D</th><th>Donor</th><th>MRN</th><th>A/R/S</th><th>Uploaded</th><th>Procedure Date</th><th>Investigator From</th></tr>";
+               $icdRsltTbl = "<table border=0 id=icSearchRsltTbl><tr><th>Consent Type</th><th>Ans</th><th>Bio</th><th>Doc</th><th>Donor</th><th>MRN</th><th>A/R/S</th><th>Uploaded</th><th>Procedure Date</th><th>Investigator From</th></tr>";
                foreach ( $icdRslt['DATA']['donorlisting'] as $k => $v) { 
                  $aprocDte = ( trim($v['anticprocdate']) === '01/01/1900' ) ? "-" : $v['anticprocdate']; 
                  $rqstr = ( trim($v['rqstname']) === '' ) ? "-" : strtoupper($v['rqstname']);
- 
-                 $ansTbl = "<table border=1 style=\"width: 30vw;\" ><tr><td colspan=2 align=right onclick=\"closeAnswers('{$v['icid']}');\">&times; close</td></tr>";
+
+                 $bioTbl = "<table border=0 style=\"width: 30vw;\"><tr><td class=closeDialogBar onclick=\"closeBiogroups('{$v['icid']}');\">&times; close</td></tr>";
+                 $bioTbl .= "<tr><td style=\"background: rgba(255,255,255,1); border: none;\"><div><div class=fieldLabel>CHTN Biogroup (Comma Delimit)</div><div><input type=text id='bGroupDelimit{$v['icid']}' style=\"width: 25vw;\"><button style=\"margin-left: .3vw;\" onclick=\"addConsentBiogroup('{$v['selector']}','{$v['icid']}');\">Attach</button></div></div></td></tr><tr><td class=sectionBar>ATTACHED BIOGROUPS</td></tr>";
+                 foreach ( $v['bioGroups'] as $bk => $bv ) {
+                   if ( trim( $bv['chtnnbr'] ) !== "" ) {  
+                       $bioTbl .= "<tr><td>{$bv['chtnnbr']} ({$bv['uploadedby']}::{$bv['uploadedon']})</td></tr>";
+                   }
+                 }
+                 $bioTbl .= "</table>" ;
+
+                 $ansTbl = "<table border=0 style=\"width: 30vw;\"><tr><td colspan=2 class=closeDialogBar onclick=\"closeAnswers('{$v['icid']}');\">&times; close</td></tr><tr><th>Consent Question</th><th>Answer</th></tr>";
                  foreach ( $v['docAnswers'] as $ak => $av ) { 
                    $ansTbl .= "<tr><td>{$av['qtxt']}</td><td>{$av['answertxt']}</td></tr>";
                  }
@@ -2700,9 +2853,9 @@ UPLOADSIDE;
 
                  $icdRsltTbl .= "<tr>"
                               . "<td>{$v['consentdoctype']}</td>"
-                              . "<td><div class=addInfoHolder><div onclick=\"openAnswers('aDisplayer{$v['icid']}');\"><i class=\"material-icons\">contact_support</i></div><div class=answerDisplayer id='aDisplayer{$v['icid']}'>{$ansTbl}</div></div></td>"
-                              . "<td><div class=addInfoHolder><div><i class=\"material-icons\">extension</i></div><div class=answerDisplayer id='aDisplayer{$v['icid']}'>{$ansTbl}</div></div></td>"
-                              . "<td><div class=addInfoHolder><div onclick=\"getPDFDoc('{$v['selector']}');\"><i class=\"material-icons\">description</i></div><div class=answerDisplayer id='aDisplayer{$v['icid']}'>PDF Doc</div></div></td>"
+                              . "<td><div class=addInfoHolder><div onclick=\"openAnswers('aDisplayer{$v['icid']}');\"><center><i class=\"material-icons\">contact_support</i></div><div class=answerDisplayer id='aDisplayer{$v['icid']}'>{$ansTbl}</div></div></td>"
+                              . "<td><div class=addInfoHolder><div onclick=\"openBiogroups('bDisplayer{$v['icid']}');\"><center><i class=\"material-icons\">extension</i></div><div class=answerDisplayer id='bDisplayer{$v['icid']}'>{$bioTbl}</div></div></td>"
+                              . "<td><div class=addInfoHolder><div onclick=\"getPDFDoc('{$v['selector']}');\"><center><i class=\"material-icons\">description</i></div><div class=answerDisplayer id='aDisplayer{$v['icid']}'>PDF Doc</div></div></td>"
                               . "<td>{$v['donorname']}</td>"
                               . "<td>{$v['mrn']}</td>"
                               . "<td>{$v['age']}/{$v['race']}/{$v['sex']}</td>"
@@ -2717,12 +2870,13 @@ UPLOADSIDE;
 
       $consentListing = <<<ICLISTING
  <div id=ICDocDsp>
- <div id=ICDTitle>Informed Consent Watch</div>
+ <div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>
+ <div id=ICDTitle>Informed Consent Search</div>
  <div align=right>
     <table border=0><tr>
-            <td>{$icdsrchfld}</td>              
-            <td><input type=text id=qryICDocTerm></td>
-            <td><button onclick="ondemandSearchConsent();">Search</button></td></tr></table>
+            <td><div><div class=fieldLabel>Type of Search</div><div>{$icdsrchfld}</div></div></td>              
+            <td><div><div class=fieldLabel>Search Term</div><div><input type=text id=qryICDocTerm></div></div></td>
+            <td><button onclick="ondemandSearchConsent();" id=btnICSearch>Search</button></td></tr></table>
  </div>
  <div id=ICDRsltGrid>
      <div id=typeOfICDSearch>{$icdRsltType}</div>
@@ -2753,8 +2907,7 @@ function root ( $rqst, $usr ) {
 $rt = <<<PGCONTENT
 
 <div id=rootTitle>CHTN Eastern Secure Donor Vault</div>
-<div id=rootDesc>This data server contains data on the donors of biosample research material of the Cooperative Human Tissue Network Eastern Division (CHTNED).  
-You must have explicit data access credentials to utilize this data server.  If you do not have the requisite access level, please click the logout button on the control bar on the left of this screen.
+<div id=rootDesc>This dataserver contains HIPAA information on the donors of biosample research material collected by the Cooperative Human Tissue Network Eastern Division (CHTNED). You must have explicit data access credentials to utilize this dataserver.  If you do not have the requisite access level, please click the logout button on the control bar on the left of this screen.<p><b>REMINDER</b>: DO NOT PRINT / COPY / OTHERWISE DOWNLOAD ANY INFORMATION FROM THIS SERVICE.  When you are finished with your session, click the log-out button (Red Button) on the left of the screen!
 
 </div>
 
@@ -2979,6 +3132,7 @@ input:focus, input:active { background: rgba({$this->color_lamber},.5); border: 
 .addInfoHolder { position: relative; } 
 .answerDisplayer {background: rgba({$this->color_white},1);position: absolute; border: 1px solid rgba({$this->color_zackgrey},1); box-sizing: border-box; min-height: 15vh; overflow: auto; display: none; z-index: 25; } 
 
+#countdown { display: none; } 
 STYLESHEET;
     return $rtnThis;
   }
@@ -3025,11 +3179,28 @@ STYLESHEET;
 .cqQstn { font-size: 1.3vh; color: rgba({$this->color_zackgrey},1); } 
 
 #ICDocDsp { padding: .3vh .5vw;  font-size: 1.5vh;  } 
-#ICDocDsp #ICDTitle { font-size: 2.5vh; font-weight: bold; color: rgba({$this->color_zackgrey},1); text-align: center; } 
+#ICDocDsp #ICDTitle { font-size: 2vh; font-weight: bold; color: rgba({$this->color_dblue},1); text-align: center; padding: 1vh 0 0 0; }
+#btnICSearch { height: 4vh; margin-top: 2vh;  } 
+.fieldLabel { font-size: 1.3vh; font-weight: bold; color: rgba({$this->color_dblue},1); padding: 1vh 0 0 0; } 
 
+#ICDRsltGrid { margin-top: 1vh;  } 
+#typeOfICDSearch { font-size: 1.3vh; font-weight: bold; color: rgba({$this->color_dblue},1); padding: 1vh 0 1vh 0;   }
+
+#icSearchRsltTbl { font-size: 1.4vh; color: rgba({$this->color_zackgrey},1); width: 98%;   }
+#icSearchRsltTbl tr:nth-child(even) { background: rgba({$this->color_neongreen},.1); } 
+#icSearchRsltTbl tr:hover { background: rgba({$this->color_lamber},.7); cursor: pointer; } 
+#icSearchRsltTbl tr th { font-size: 1vh; background: rgba({$this->color_dblue},1); color: rgba({$this->color_white},1); padding: .4vh 0;  } 
+#icSearchRsltTbl tr td { padding: .5vh .3vw; border-right: 1px solid rgba({$this->color_zackgrey},.5); border-bottom: 1px solid rgba({$this->color_zackgrey},.5); } 
+
+
+#warningbar { background: rgba({$this->color_bred},.8); font-size: 2.2vh; text-align: center; color: rgba({$this->color_white},1); font-weight: bold; padding: 1vh 0; width: 60vw;   } 
 #qryICDocSrch { width: 15vw; }
 #qryICDocTerm { width: 30vw; } 
 
+.closeDialogBar { text-align: right; background: rgba({$this->color_black},1); color: rgba({$this->color_white},1); font-size: 1.2vh;padding: .2vh .3vw; }
+.closeDialogBar:hover { color: rgba({$this->color_bred},1); cursor: pointer;  } 
+
+.sectionBar { text-align: center; border: none; font-weight: bold; font-size: 1.1vh; background: rgba({$this->color_dblue},1); color: rgba({$this->color_white},1); }
 
 stylesheets;
     return $rtnThis;
@@ -3090,7 +3261,7 @@ stylesheets;
 body { background: {$bgPic} repeat; padding-left: 4vw; padding-right: 4vw;  }
 
 #rootTitle { text-align: center; font-size: 3vh; padding: 3vh 0 .5vh 0; font-weight: bold; color: rgba({$this->color_dblue},1); border-bottom: 2px solid rgba({$this->color_dblue},1);  }
-#rootDesc { font-size: 1.2vh; text-align: justify; padding: 1vh 0 1vh 0; line-height: 1.8em; }
+#rootDesc { font-size: 2vh; text-align: justify; padding: 1vh 25vw 1vh 25vw; line-height: 1.8em; color: rgba({$this->color_bred},1); }
 
 STYLESHEET;
     return $rtnThis;
