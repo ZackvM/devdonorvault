@@ -1,5 +1,36 @@
 <?php 
 
+/*    
+ * DB STUFF 
+ * grant delete on ORSCHED.dv_ss_srvIdents to 'usract'@'%'
+ * 
+ * CREATE TABLE `srchrequests` (
+  `idsrchrequests` int(11) NOT NULL AUTO_INCREMENT,
+  `srchid` varchar(500) DEFAULT NULL,
+  `reqby` longtext,
+  `srchrequests` longtext,
+  `onwhen` datetime DEFAULT NULL,
+  PRIMARY KEY (`idsrchrequests`),
+  UNIQUE KEY `srchid_UNIQUE` (`srchid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+*
+*
+*
+* UPDATE TABLE STUFF
+* ALTER TABLE `ORSCHED`.`srchrequests` ADD COLUMN `clearTitleRslt` LONGTEXT NULL AFTER `onwhen`;
+
+
+*CREATE TABLE `ut_informed_consents_answers` (
+  `icid` int(11) NOT NULL,
+  `answerid` int(11) NOT NULL AUTO_INCREMENT,
+  `qid` varchar(45) DEFAULT NULL,
+  `qtxt` varchar(200) DEFAULT NULL,
+  `answertxt` longtext,
+  PRIMARY KEY (`answerid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+*
+ */
+
 //ini_set('display_errors',1);
 //error_reporting(-1);
 
@@ -13,7 +44,7 @@ define("scienceserverTagVersion","v7.0.5invty");
 //define("treeTop","https://chtn2017.uphs.upenn.edu");
 //define("dataTree","https://chtn2017.uphs.upenn.edu");
 
-/*   TEST VARS  */  
+/*   TEST VARS    */
 define("serverkeys","/var/www/devvault.chtneast.org/cgi-bin");
 define("genAppFiles","/var/www/devvault.chtneast.org/cgi-bin");
 define("treeTop","https://devvault.chtneast.org");
@@ -156,48 +187,21 @@ case 'POST':
   $data = json_encode(array("MESSAGE" => "","ITEMSFOUND" => 0, "DATA" => ""));
   $authuser = $_SERVER['PHP_AUTH_USER'];
   $authpw = $_SERVER['PHP_AUTH_PW'];
-  
-  if ( $originalRequest == '/datadoers/stashconsent') {
- //     $responseCode = 500; 
- //     if (isset($_FILES['file'])) {
- //        $msgArr[] =$_FILES['file']['name'];
-         //$msgArr[] =$_FILES['file']['size'];
-         //$msgArr[] =$_FILES['file']['tmp_name'];
-         //$msgArr[] =$_FILES['file']['type'];
-//	 $msgArr[] =strtolower(end(explode('.',$_FILES['file']['name'])));
-//	 $msgArr[] = $temp_file = sys_get_temp_dir();
-//	 $img = file_get_contents( $_FILES['file']['tmp_name'] );
-//	 require( serverkeys . '/sspdo.zck');
-
-	 $selector = generateRandomString(25);
-	 move_uploaded_file($_FILES['file']['tmp_name'], "/var/www/cgi-bin/stash/{$selector}.pdf");
-//         $docInsSQL = "insert into ORSCHED.ut_informed_consents_documents(icid, selector, documentstring) values(0, :selector, :documentstring)";
-//	 $docInsRS = $conn->prepare($docInsSQL);
-//	 $f = base64_encode( $img ); 
-//         $docInsRS->execute(array(':selector' => $selector, ':documentstring' => $f )); 
-//	 $msgArr[] = $selector;	
-//	 $msgArr[] = $f; 
-//         $msgArr[] = $authuser;
-      }
- //     $data = json_encode(array("MESSAGE" => $msgArr,"ITEMSFOUND" => 0, "DATA" => ""));
- // } else {  
-
-    if ((int)checkPostingUser($authuser,$authpw) === 200 ) {
-      //require( genAppFiles . '/dvposter.php');
-      $postedData = file_get_contents('php://input');
-      $passedPayLoad = "";
-      if (trim($postedData) !== "") {
-        $passedPayLoad = trim($postedData);
-      }
-      $doer = new dataposters($originalRequest, $passedPayLoad);
-      $responseCode = $doer->responseCode;
-      $data = $doer->rtnData;
-    } else {
-      $responseCode = 401;
-      $msgArr[] = "SPECIFIED USER NOT ALLOWED.";
-      $data = json_encode(array("MESSAGE" => $msgArr,"ITEMSFOUND" => 0, "DATA" => ""));
+  if ((int)checkPostingUser($authuser,$authpw) === 200 ) {
+    //require( genAppFiles . '/dvposter.php');
+    $postedData = file_get_contents('php://input');
+    $passedPayLoad = "";
+    if (trim($postedData) !== "") {
+      $passedPayLoad = trim($postedData);
     }
-  //}
+    $doer = new dataposters($originalRequest, $passedPayLoad);
+    $responseCode = $doer->responseCode;
+    $data = $doer->rtnData;
+  } else {
+    $responseCode = 401;
+    $msgArr[] = "SPECIFIED USER NOT ALLOWED.";
+    $data = json_encode(array("MESSAGE" => $msgArr,"ITEMSFOUND" => 0, "DATA" => ""));
+  }
 
   http_response_code( $responseCode );
   echo $data;
@@ -374,79 +378,88 @@ class datadoers {
       $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
       return $rows;      
     }
-
-    function stashconsent ( $request, $passedData ) { 
-      $responseCode = 503;  
-      $vuser = new vaultuser();
-      $errorInd = 0;
-
-      $msgArr[] = $_FILES['file']['tmp_name'];
-      
-      if ( (int)$vuser->responsecode === 200 ) { 	 
-          if ( trim($_FILES['file']['tmp_name']) !== "" ) { 
-           //$msgArr[] =$_FILES['file']['type'];  //CHECK TO MAKE SURE IT IS A PDF
-           //$msgArr[] =strtolower(end(explode('.',$_FILES['file']['name'])));
-           $msgArr[] = $_FILES['file']['name'] ;
-           $selector = generateRandomString(25);
-           move_uploaded_file($_FILES['file']['tmp_name'], "/var/www/cgi-bin/stash/{$selector}.pdf");
-        } else { 
-            
-            list( $errorInd, $msgArr[] ) = array( 1, "NO CONSENT PDF HAS BEEN SPECIFIED");
-        }
-          
-
-//        foreach ( $_POST as $key => $value ) {
-//          $msgArr[] = $key . " ... " . $value;
-//        }
-
-
-        
-      }
-      $msg = $msgArr;
-      $rows['statusCode'] = $responseCode; 
-      $rows['data'] = array('RESPONSECODE' => $responseCode,  'MESSAGE' => $msg, 'ITEMSFOUND' => 0,  'DATA' => $dta);
-      return $rows;      
-    }
-
+ 
     function saveconsentdocument ( $request, $passedData ) { 
       $responseCode = 503;  
       $vuser = new vaultuser();
       $errorInd = 0;
       if ( (int)$vuser->responsecode === 200 ) { 
-//          $pdta = json_decode($passedData, true); 
-//          foreach ( $pdta as $key => $value ) {
-//              if ( !cryptservice($key,'d') ) { 
-//                 $locarr[ $key ] = $value; 
-//              } else { 
-//                 $locarr[ cryptservice($key,'d') ] = chtndecrypt( $value );
-//              }
-//          }
-//
-//	  ( !array_key_exists('fldDonorFName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorFName' DOES NOT EXIST.")) : ""; 
-//          ( !array_key_exists('fldDonorLName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorLName' DOES NOT EXIST.")) : ""; 
-//
-//
-//          if ( $errorInd === 0 ) {
-//             ( trim($locarr['fldDonorFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S FIRST NAME MUST BE SPECIFIED.")) : "";
-//
-//            if ( $errorInd === 0 ) {
-//              require( serverkeys . '/sspdo.zck');
-//	      $insSQL = "insert into ORSCHED.ut_informed_consents (selector, donorfname, donorlname, uploadon ) values (:selector, :donorfname, :donorlname , now())";
-//              $insRS = $conn->prepare($insSQL); 
-//	      $selector = generateRandomString(25);
-//	      $insRS->execute(array(':selector' =>  $selector, ':donorfname' => trim($locarr['fldDonorFName']), ':donorlname' =>  trim($locarr['fldDonorLName'])    ));
-	      //$insRS->execute(array(':selector' =>  $selector, ':donorfname' => trim($locarr['fldDonorFName']), ':donorlname' =>  trim($locarr['fldDonorLName']), ':mrn' => trim($locarr['fldDonorMRN']),':age' =>  trim($locarr['fldDnrAge']), ':ageuom' =>  trim($locarr['fldDnrAgeUOM']) , ':race' =>  trim($locarr['fldDnrRace']), ':sex' =>  trim($locarr['fldDnrSex']), ':rqstrfname' =>  trim($locarr['fldIFName']), ':rqstrlname' => trim($locarr['fldILName']), ':anticprocdate' => date('Y-m-d',strtotime( $anticProcDate )), ':consentdoctype' =>  trim($locarr['consentdoc']), ':uploadby' => $vuser->userid));
-//	      $icid = $conn->lastInsertId(); 
-//
-//              $icid = 100;
-//              $docInsSQL = "insert into ORSCHED.ut_informed_consents_documents(icid, documentstring) values(:icid, :documentstring)";
-//              $docInsRS = $conn->prepare($docInsSQL); 
-//              $docInsRS->execute(array(':icid' => $icid, ':documentstring' => $locarr['consentfile'] )); 
-// 
-//              (list( $errorInd, $msgArr[] ) = array(1 , $locarr['consentfile']  ));
-//             //$responseCode = 200;
-//            }
-//          }
+          $pdta = json_decode($passedData, true); 
+          foreach ( $pdta as $key => $value ) {
+              if ( !cryptservice($key,'d') ) { 
+                 $locarr[ $key ] = $value; 
+              } else { 
+                 $locarr[ cryptservice($key,'d') ] = chtndecrypt( $value );
+              }
+          }
+
+          ( !array_key_exists('fldDonorFName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorFName' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDonorLName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorLName' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDonorMRN', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorMRN' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDnrAge', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDnrAge' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDnrAgeUOM', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDnrAgeUOM' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldDnrRace', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDnrRace' DOES NOT EXIST.")) : "";
+          ( !array_key_exists('fldDnrSex', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDnrSex' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldIFName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldIFName' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldILName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldILName' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('fldProcDte', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldProcDte' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('consentdoc', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'consentdoc' DOES NOT EXIST.")) : ""; 
+          ( !array_key_exists('consentfile', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'consentfile' DOES NOT EXIST.")) : ""; 
+
+          if ( $errorInd === 0 ) {
+             ( trim($locarr['fldDonorFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S FIRST NAME MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['fldDonorLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S LAST NAME MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['fldDnrAge']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S AGE MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['fldDnrRace']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S RACE MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['fldDnrSex']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S SEX MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['consentdoc']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE CONSENT DOCUMENT MUST BE SPECIFIED.")) : "";
+             ( trim($locarr['consentfile']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"A PDF FILE MUST BE UPLOADED.")) : "";
+
+             if ( trim($locarr['fldProcDte']) !== "" ) { 
+               ( !ssValidateDate(trim($locarr['fldProcDte']),'m/d/Y' )) ? (list( $errorInd, $msgArr[] ) = array(1 , "WHEN SUPPLYING A PROCEDURE DATE IT MUST BE IN THE FORMAT mm/dd/YYYY")) : "";
+
+             }
+
+             $qAnsInd = 0;
+             foreach ( $locarr as $key => $value ) {
+               if ( substr( $key, 0, 4) === "ansQ" && trim($value) === "" && $qAnsInd === 0 ) {  
+                   $msgArr[] = "ALL CONSENT DOCUMENT QUESTIONS MUST BE ANSWERED.";
+                   $errorInd = 1;
+                   $qAnsInd = 1;
+               }
+               if ( substr( $key,0,4) === "ansQ" && trim($value) !== "" ) {
+                  $qPrt = explode('_',preg_replace('/^ans/','',$key)); 
+                  if ( $qPrt[1] === 'txd' ) { 
+                      ( !ssValidateDate(trim($value),'m/d/Y' )) ? (list( $errorInd, $msgArr[] ) = array(1 , "ALL CONSENT QUESTIONS ANSWERS CONTAINING A DATE MUST BE IN FORMAT mm/dd/YYYY")) : "";
+                  }
+               }
+             }
+
+            if ( $errorInd === 0 ) {
+              require( serverkeys . '/sspdo.zck');
+              $insSQL = "insert into ORSCHED.ut_informed_consents (selector, donorfname, donorlname, mrn, age, ageuom, race, sex, rqstrfname, rqstrlname, anticprocdate, consentdoctype, uploadby, uploadon) values (:selector, :donorfname, :donorlname, :mrn, :age, :ageuom, :race, :sex, :rqstrfname, :rqstrlname, :anticprocdate, :consentdoctype, :uploadby, now())";
+              $insRS = $conn->prepare($insSQL); 
+              $selector = generateRandomString(25);
+              $anticProcDate = ( trim($locarr['fldProcDte']) === ""  ) ? '01/01/1900' : trim($locarr['fldProcDte']);
+              $insRS->execute(array(':selector' =>  $selector, ':donorfname' => trim($locarr['fldDonorFName']), ':donorlname' =>  trim($locarr['fldDonorLName']), ':mrn' => trim($locarr['fldDonorMRN']),':age' =>  trim($locarr['fldDnrAge']), ':ageuom' =>  trim($locarr['fldDnrAgeUOM']) , ':race' =>  trim($locarr['fldDnrRace']), ':sex' =>  trim($locarr['fldDnrSex']), ':rqstrfname' =>  trim($locarr['fldIFName']), ':rqstrlname' => trim($locarr['fldILName']), ':anticprocdate' => date('Y-m-d',strtotime( $anticProcDate )), ':consentdoctype' =>  trim($locarr['consentdoc']), ':uploadby' => $vuser->userid));
+              $icid = $conn->lastInsertId(); 
+              $docInsSQL = "insert into ORSCHED.ut_informed_consents_documents(icid, documentstring) values(:icid, :documentstring)";
+              $docInsRS = $conn->prepare($docInsSQL); 
+              $docInsRS->execute(array(':icid' => $icid, ':documentstring' => $locarr['consentfile'])); 
+ 
+              $ansInsSQL = "insert into ORSCHED.ut_informed_consents_answers (icid, qid, qtxt, answertxt) values(:icid, :qid, :qtxt, :answertxt)";
+              $ansInsRS = $conn->prepare($ansInsSQL);
+              foreach ( $locarr as $key => $value ) {
+                if ( substr( $key,0,4) === "ansQ" && trim($value) !== "" ) {
+                  $qPrt = explode('_',preg_replace('/^ans/','',$key));
+                  $cqDta = json_decode(callrestapi("GET", dataTreeSS . "/vault-consent-doc-questions-text/" . $qPrt[0], serverIdent, serverpw, ""), true);
+                  $ansInsRS->execute(array(':icid' => $icid, ':qid' => $qPrt[0], ':qtxt' => $cqDta['DATA'][0]['dspvalue'], ':answertxt' => $value));
+               }
+             }
+              
+             $responseCode = 200;
+            }
+          }
       }  else { 
           $dta = "USER NOT ALLOWED";
       }  
@@ -1664,8 +1677,6 @@ var dataPath = "{$dtaTree}";
 var dataGPath = "{$dtaGTree}";
 var mousex;
 var mousey;
-var regu = "{$regUsr}";
-var regc = "{$regCode}";
 
 var httpage = getXMLHTTPRequest();
 var httpdialog = getXMLHTTPRequest();
@@ -2081,38 +2092,27 @@ function consentcancel() {
   location.reload(true);
 }
 
-function validateConsentForm() { 
-  var form = document.forms.namedItem("consentDocFrm");
-  oData = new FormData(form);
-  oData.append("{$fldDFName}", window.btoa( encryptedString ( key, byId('fldDonorFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldDLName}", window.btoa( encryptedString ( key, byId('fldDonorLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldDMRN}", window.btoa( encryptedString ( key, byId('fldDonorMRN').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldDAge}", window.btoa( encryptedString ( key, byId('fldDnrAge').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldDAgeUOM}", window.btoa( encryptedString ( key, byId('qryAgeUOMValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldDRace}", window.btoa( encryptedString ( key, byId('qryRaceValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldDSex}", window.btoa( encryptedString ( key, byId('qrySexValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldIFName}", window.btoa( encryptedString ( key, byId('fldIFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldILName}", window.btoa( encryptedString ( key, byId('fldILName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append("{$fldProcDte}", window.btoa( encryptedString ( key, byId('fldProcDte').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ));
-  oData.append( 'consentdoc', byId('cDoc').value );
-  var named = byId("consentquestions"); 
+function consentwatchsave() { 
+  var pdta = new Object();  
+  pdta['{$fldDFName}'] = window.btoa( encryptedString ( key, byId('fldDonorFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDLName}'] = window.btoa( encryptedString ( key, byId('fldDonorLName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDMRN}'] = window.btoa( encryptedString ( key, byId('fldDonorMRN').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDAge}'] = window.btoa( encryptedString ( key, byId('fldDnrAge').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDAgeUOM}'] = window.btoa( encryptedString ( key, byId('qryAgeUOMValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDRace}'] = window.btoa( encryptedString ( key, byId('qryRaceValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldDSex}'] = window.btoa( encryptedString ( key, byId('qrySexValue').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldIFName}'] = window.btoa( encryptedString ( key, byId('fldIFName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldILName}'] = window.btoa( encryptedString ( key, byId('fldILName').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['{$fldProcDte}'] = window.btoa( encryptedString ( key, byId('fldProcDte').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) );
+  pdta['consentdoc'] = byId('cDoc').value;
+  var named = document.getElementById("consentquestions"); 
   var elem = named.getElementsByTagName("input");
   for (var i = 0, n = elem.length; i < n; i = i + 1) {
-    oData.append( elem[i].id , elem[i].value.trim());
-   }  
-  byId('standardModalBacker').style.display = 'block';
-  var oReq = new XMLHttpRequest();
-  oReq.open("POST",dataPath+"stash-consent", true);
-  oReq.setRequestHeader("Authorization","Basic " + btoa(regu+":"+regc));
-  oReq.onload = function(oEvent) {
-  if ( parseInt(oReq.status) === 200) {
-
-    } else {
-      alert('ERROR EXISTS');
-    }
-    byId('standardModalBacker').style.display = 'none';
-  };
-  oReq.send(oData);
+    pdta[ elem[i].id ] =  elem[i].value.trim();
+  }  
+  pdta['consentfile'] =    byId('btoIConsent').value.trim();
+  var passdata = JSON.stringify(pdta);
+  universalAJAX("POST", "save-consent-document", passdata, updateConsentResponse, 1);
 }
   
 function updateConsentResponse( rtnData ) {
@@ -2128,6 +2128,16 @@ function updateConsentResponse( rtnData ) {
         alert('Informed Consent Document Saved to Database');     
         location.reload(true);
       }
+}
+  
+function btoathisfile(btoadsp, passedfile) {
+   var reader = new FileReader();
+   reader.onload = function(e) {
+     alert( 'HERE-HERE');
+  
+     byId(btoadsp).innerHTML = encodeURIComponent( reader.result );
+    };
+    reader.readAsDataURL(passedfile);
 }
 
 function openAnswers( whichicid ) { 
@@ -2752,17 +2762,6 @@ PGCONTENT;
 <div id=cwTitle>Upload Consent Form</div>
 <div id=cwDirections>Fill out the form below.  This will add the donor to the 'Consent Watch List' unless you list CHTN Biogroup Numbers.  If you list CHTN Numbers, those numbers will be marked 'Informed Consent YES' in the ScienceServer Database.  </div>
 <p>
-<form id=consentDocFrm name=consentDocFrm  onsubmit="event.preventDefault(); validateConsentForm();" method="POST" enctype="multipart/form-data" >
-<div class=cwSectionHeader>Upload File *</div>
-<div>
-  <div>Choose a File</div>
-  <div><input type="file" name="file" id="file" class="inputfile" accept=".pdf" onchange="btoathisfile('btoIConsent', this.files[0]);" /><TEXTAREA id="btoIConsent" style="display: block;"></textarea></div>
-</div>
-<div align=right style="width: 30vw;">
-<table><tr><td> <button id=btnConsentSave >Save</button> </td><td> <button id=btnConsentCancel onclick="consentcancel();">Cancel</button> </td></tr></table>
-</div>
-
-
 <div class=cwSectionHeader>Donor Information</div>
 <div id=elementlineOne>
   <div class=element><div class=elementLabel>Donor First Name *</div><div class=elemental><input type=text id=fldDonorFName></div></div>
@@ -2795,13 +2794,19 @@ PGCONTENT;
   </div>
   <div id=consentquestions>{$consentQList}</div>
 </div>
-  </form>
 <p>
+<div class=cwSectionHeader>Upload File *</div>
+<div>
+  <div>Choose a File</div>
+  <div><input type="file" name="file" id="file" class="inputfile" accept=".pdf" onchange="btoathisfile('btoIConsent', this.files[0]);" /><TEXTAREA id="btoIConsent" style="display: block;"></textarea></div>
+</div>
 
+<div align=right style="width: 30vw;">
+<table><tr><td> <button id=btnConsentSave onclick="consentwatchsave();">Save</button> </td><td> <button id=btnConsentCancel onclick="consentcancel();">Cancel</button> </td></tr></table>
+</div>
 
 UPLOADSIDE;
 
-//onclick="consentwatchsave();"
 
            $icdsrchopt = json_decode (callrestapi("GET", dataTreeSS . "/global-menu/icd-doc-search-options",serverIdent, serverpw,""), true);
             if ( (int)$icdsrchopt['ITEMSFOUND'] > 0 ) { 
