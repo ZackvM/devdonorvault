@@ -8,17 +8,17 @@ session_start();
 define("scienceserverTagVersion","v7.0.5invty");
 
 /*   PRODUCTION VARS */
-define("serverkeys", "/var/www/cgi-bin");
-define("genAppFiles", "/var/www/cgi-bin");
-define("treeTop","https://chtn2017.uphs.upenn.edu");
-define("dataTree","https://chtn2017.uphs.upenn.edu");
+//define("serverkeys", "/var/www/cgi-bin");
+//define("genAppFiles", "/var/www/cgi-bin");
+//define("treeTop","https://chtn2017.uphs.upenn.edu");
+//define("dataTree","https://chtn2017.uphs.upenn.edu");
 
-/*   TEST VARS    
+/*   TEST VARS  */  
 define("serverkeys","/var/www/devvault.chtneast.org/cgi-bin");
 define("genAppFiles","/var/www/devvault.chtneast.org/cgi-bin");
 define("treeTop","https://devvault.chtneast.org");
 define("dataTree","https://devvault.chtneast.org");
- */
+
 
 define("dataTreeSS","https://dev.chtneast.org/data-services");
 define("dbu","T1FtbG9VZkxGUCt1aGxSSDE5dEJxdz09\U0IxeHNIQmpXR1Y4anRvNEMxYTlNUT09");
@@ -2550,7 +2550,9 @@ PGCONTENT;
         ( trim($rq['fldMRN']) !== "" && preg_match('/[^0-9\%]/',trim($rq['fldMRN'])) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "MRNs MUST BE NUMERIC REPRESENTATIONS")) : "";       
         ( trim($rq['fldORDte']) !== "" && !ssValidateDate($rq['fldORDte'],'m/d/Y') ) ? (list( $errorInd, $msgArr[] ) = array(1 , "O.R. DATE FORMAT IS INCORRECT")) : "";        
 
-        ( (trim($rq['fldFName']) !== "" || trim($rq['fldLName']) !== "" || trim($rq['fldMRN']) !== "" || trim($rq['fldORDte']) !== "" ) && trim($rq['fldCHTNNbr']) !== "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "SEARCHES FOR CHTNEASTERN BIOGROUP DONOR INFORMATION CANNOT BE PERFORMED WITH SEARCHES IN THE GENERAL CATEGORY.")) : ""; 
+        ( (trim($rq['fldFName']) !== "" || trim($rq['fldLName']) !== "" || trim($rq['fldMRN']) !== "" || trim($rq['fldORDte']) !== "" ) && trim($rq['fldCHTNNbr']) !== "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "SEARCHES FOR CHTNEASTERN BIOGROUP  DONOR INFORMATION CANNOT BE PERFORMED WITH SEARCHES IN THE GENERAL CATEGORY.")) : ""; 
+
+
 
         $valFN = $rq['fldFName'];
         $valLN = $rq['fldLName'];
@@ -2564,25 +2566,20 @@ PGCONTENT;
                 (list( $errorInd, $msgArr[] ) = array(1 , "SEARCHES FOR CHTNEASTERN BIOGROUP  DONOR INFORMATION CANNOT BE PERFORMED WITH SEARCHES IN THE GENERAL CATEGORY."));
               } else {   
                 //{"MESSAGE":["87106"],"ITEMSFOUND":1,"DATA":[{"pxiID":"0dc6d821-0056-49ee-b15d-48a71df676d7"}]}     
-		$ssdta = json_decode(callrestapi("GET", dataTreeSS . "/vault-search-bg/{$valCH}",serverIdent, serverpw,""),true);  
-
-                $chk = "<div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>";
-                //$chk .= "<table border=0 id=donorDataDsp><tr><td colspan=9 id=headerLine>Donors Found: " . $lookupRS->rowCount() . "</td></tr><tr><th>Schedule<br>Date</th><th>Schedule<br>Institution</th><th>Procedure<br>Start-time</th><th>Donor Name</th><th>MRN</th><th>Donor Record<br>Age/Race/Sex</th><th>Surgeon</th><th>Procedure<br>Description</th></tr><tbody>";  
-                $chk .= "<table border=0 id=donorDataDsp><tr><td colspan=9 id=headerLine>Donors Found: </td></tr><tr><th>Schedule<br>Date</th><th>Schedule<br>Institution</th><th>Procedure<br>Start-time</th><th>Donor Name</th><th>MRN</th><th>Donor Record<br>Age/Race/Sex</th><th>Surgeon</th><th>Procedure<br>Description</th></tr><tbody>";  
-                $rowcnt = 0;  
-
-		if ( (int)$ssdta['ITEMSFOUND'] > 0 ) { 
+                $ssdta = json_decode(callrestapi("GET", dataTreeSS . "/vault-search-bg/{$valCH}",serverIdent, serverpw,""),true);  
+                if ( (int)$ssdta['ITEMSFOUND'] > 0 ) { 
                   //LOOK FOR PXI IN DATABASE
                   $lookupSQL = "SELECT schd.ORSchdtid as pxiid, schd.ORSchdid, ifnull(date_format(ors.ordate,'%m/%d/%Y'),'') as ordate, ifnull(ors.forlocation,'') orlocation, ifnull(schd.starttime,'') as procedurestart, ifnull(schd.surgeon,'') as surgeon, concat(ifnull(schd.patlast,'ERROR'),', ', ifnull(schd.PatFirst,'ERROR')) as donorname, ifnull(schd.mrn,'0000000') as mrn, concat(ifnull(schd.age,'-'),'/',ifnull(schd.race,'-'),'/',ifnull(schd.sex,'-')) donorars, ifnull(schd.procdetails,'') as procdetails FROM ORSCHED.ut_zck_ORSchDetail schd left join ORSCHED.ut_zck_ORSchds ors on schd.ORSchdid = ors.ORSchedid where 1=1 and ORSchdtid = :pxiid";
-		  $lookupRS = $conn->prepare($lookupSQL);
-
+                  $lookupRS = $conn->prepare($lookupSQL);
                   foreach ( $ssdta['DATA'] as $k => $v ) { 
                     $lookupRS->execute(array(':pxiid' => $v['pxiID']));
                     if ( $lookupRS->rowCount() < 1 ) { 
-                      $chk .= "<tr><td colspan=8>NO DONOR INFORMATION FOUND MATCHING YOUR QUERY PARAMETERS ({$valCH}) IN ORSCHED</td></tr>";
+                      $chk = "NO DONOR INFORMATION FOUND MATCHING YOUR QUERY PARAMETERS ({$valCH})";
                     } else {
-
-		      while ($r = $lookupRS->fetch(PDO::FETCH_ASSOC)) { 
+                      $chk = "<div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>";
+                      $chk .= "<table border=0 id=donorDataDsp><tr><td colspan=9 id=headerLine>Donors Found: " . $lookupRS->rowCount() . "</td></tr><tr><th>Schedule<br>Date</th><th>Schedule<br>Institution</th><th>Procedure<br>Start-time</th><th>Donor Name</th><th>MRN</th><th>Donor Record<br>Age/Race/Sex</th><th>Surgeon</th><th>Procedure<br>Description</th></tr><tbody>";  
+                      $rowcnt = 0;  
+                      while ($r = $lookupRS->fetch(PDO::FETCH_ASSOC)) { 
                         $chk .= "<tr class=pxidatarow id=\"datarow{$rowcnt}\" data-pxiid=\"{$r['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
                           . "<td valign=top>{$r['ordate']}</td>"
                           . "<td valign=top>{$r['orlocation']}</td>"
@@ -2594,55 +2591,11 @@ PGCONTENT;
                           . "<td valign=top>{$r['procdetails']}</td>"
                           . "</tr>";
                         $rowcnt++;
-		      }
-
+                      }
+                      $chk .= "</tbody></table>";
                     }  
                   } 
-		}
-
-                $elogSQL = "select 'C2L-DATA' fld1, 'C2L-DATA' fld2, 'C2L-DATA' as fld3, concat(ifnull(sd.patlast,''),', ',ifnull(sd.patfirst,'')) as donorname, ifnull(sd.mrn,'') as mrn, concat(ifnull(sd.age,'-'),'/',ifnull(sd.race,'-'),'/',ifnull(sd.sex,'-')) as ars, ifnull(sd.surgeon,'') as surgeon, 'ELOG and/or HISTORIC C2L-DATA' as proctext from ORSCHED.ut_Case2Label cl left join ORSCHED.ut_zck_ORSchDetail sd on cl.pxi = sd.orschdtid where biogroup like :chtnnbr"; 
-                $elogRS = $conn->prepare( $elogSQL ); 
-                $elogRS->execute( array( ':chtnnbr' => "{$valCH}%"));
-                if ( $elogRS->rowCount() > 0 ) { 
-		  while ( $r = $elogRS->fetch(PDO::FETCH_ASSOC) ) { 
-                    $chk .= "<tr class=pxidatarow id=\"datarow{$rowcnt}\" data-pxiid=\"{$r['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
-                        . "<td valign=top>{$r['fld1']}</td>"
-                        . "<td valign=top>{$r['fld2']}</td>"
-                        . "<td valign=top>{$r['fld3']}</td>"
-                        . "<td valign=top>{$r['donorname']}</td>"
-                        . "<td valign=top>{$r['mrn']}</td>"
-                        . "<td valign=top>{$r['ars']}</td>"
-                        . "<td valign=top>{$r['surgeon']}</td>"
-                        . "<td valign=top>{$r['proctext']}</td>"
-                        . "</tr>";
-                      $rowcnt++;
-		  }
-		} else { 
-                  $chk .= "<tr><td colspan=8>NO DONOR INFORMATION FOUND MATCHING YOUR QUERY PARAMETERS ({$valCH}) IN HISTORIC ELOG DATA</td></tr>";
-		}
-
-                $ffSQL = "select dnchtnid, dnlastname, dnfirsname, dnrace, dngnder, dndob, dnrefnum, dncreated, dnloc, dnauthor from ORSCHED.ut_Donor where dnchtnid like :chtnnbr"; 
-                $ffRS = $conn->prepare( $ffSQL );
-		$ffRS->execute( array( ':chtnnbr' => "{$valCH}%" ) );
-                if ( $ffRS->rowCount() > 0 ) { 
-     	          while ( $r = $ffRS->fetch(PDO::FETCH_ASSOC) ) { 
-                        $chk .= "<tr class=pxidatarow id=\"datarow{$rowcnt}\" data-pxiid=\"--\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
-                          . "<td valign=top>FOXFIRE-DATA</td>"
-                          . "<td valign=top>{$r['dnloc']}</td>"
-                          . "<td valign=top>FOXFIRE-DATA</td>"
-                          . "<td valign=top>{$r['dnlastname']}, {$r['dnfirstname']}</td>"
-                          . "<td valign=top>{$r['dnrefnum']}</td>"
-                          . "<td valign=top>-/{$r['dnrace']}/{$r['dngnder']}</td>"
-                          . "<td valign=top>FIREFOX-DATA</td>"
-                          . "<td valign=top>{$r['dnchtnid']} created on {$r['dncreated']} by {$r['dnauthor']}</td>"
-                          . "</tr>";
-                        $rowcnt++;
-                  }
-                } else { 
-                  $chk .= "<tr><td colspan=8>NO DONOR INFORMATION FOUND MATCHING YOUR QUERY PARAMETERS ({$valCH}) IN HISTORIC FOXFIRE DATA</td></tr>";
-                }
-
-                $chk .= "</tbody></table>";
+                } 
               }
 
           } else {
