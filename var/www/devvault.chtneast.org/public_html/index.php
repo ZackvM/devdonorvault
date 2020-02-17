@@ -2365,7 +2365,6 @@ JAVASCR;
       pdta['{$fldORDte}'] = window.btoa( encryptedString ( key, byId('fldORDte').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ); 
       pdta['{$fldCHTNNbr}'] = window.btoa( encryptedString ( key, byId('fldCHTNNbr').value, RSAAPP.PKCS1Padding, RSAAPP.RawEncoding ) ); 
       var passdata = JSON.stringify(pdta);
-      console.log ( passdata ); 
       universalAJAX("POST", "donor-lookup", passdata, dspdonorlookupresults, 1);
     }
  
@@ -2559,7 +2558,8 @@ PGCONTENT;
         ( trim($rq['fldMRN']) !== "" && preg_match('/[^0-9\%]/',trim($rq['fldMRN'])) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "MRNs MUST BE NUMERIC REPRESENTATIONS")) : "";       
         ( trim($rq['fldORDte']) !== "" && !ssValidateDate($rq['fldORDte'],'m/d/Y') ) ? (list( $errorInd, $msgArr[] ) = array(1 , "O.R. DATE FORMAT IS INCORRECT")) : "";        
 
-        ( (trim($rq['fldFName']) !== "" || trim($rq['fldLName']) !== "" || trim($rq['fldMRN']) !== "" || trim($rq['fldORDte']) !== "" ) && trim($rq['fldCHTNNbr']) !== "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "SEARCHES FOR \"ELOG ARCHIVE\" DONOR INFORMATION CANNOT BE PERFORMED WITH SEARCHES IN THE GENERAL CATEGORY.")) : ""; 
+        ( (trim($rq['fldFName']) !== "" || trim($rq['fldLName']) !== "" || trim($rq['fldMRN']) !== "" || trim($rq['fldORDte']) !== "" ) && trim($rq['fldCHTNNbr']) !== "" ) ? (list( $errorInd, $msgArr[] ) = array(1 , "SEARCHES FOR CHTNEASTERN BIOGROUP  DONOR INFORMATION CANNOT BE PERFORMED WITH SEARCHES IN THE GENERAL CATEGORY.")) : ""; 
+
 
 
         $valFN = $rq['fldFName'];
@@ -2569,8 +2569,42 @@ PGCONTENT;
         $valCH = $rq['fldCHTNNbr'];
         if ( $errorInd === 0 ) { 
           if ( (trim($rq['fldFName']) === "" && trim($rq['fldLName']) === "" && trim($rq['fldMRN']) === "" && trim($rq['fldORDte']) === "" ) && trim($rq['fldCHTNNbr']) !== "" ) {
-            $chk = "ELOG ARCHIVAL SEARCH IS NOT ACTIVE IN THIS RELEASE";
-
+  
+              if ( strlen($valCH) < 4 ) {
+                (list( $errorInd, $msgArr[] ) = array(1 , "SEARCHES FOR CHTNEASTERN BIOGROUP  DONOR INFORMATION CANNOT BE PERFORMED WITH SEARCHES IN THE GENERAL CATEGORY."));
+              } else {   
+                //{"MESSAGE":["87106"],"ITEMSFOUND":1,"DATA":[{"pxiID":"0dc6d821-0056-49ee-b15d-48a71df676d7"}]}     
+                $ssdta = json_decode(callrestapi("GET", dataTreeSS . "/vault-search-bg/{$valCH}",serverIdent, serverpw,""),true);  
+                if ( (int)$ssdta['ITEMSFOUND'] > 0 ) { 
+                  //LOOK FOR PXI IN DATABASE
+                  $lookupSQL = "SELECT schd.ORSchdtid as pxiid, schd.ORSchdid, ifnull(date_format(ors.ordate,'%m/%d/%Y'),'') as ordate, ifnull(ors.forlocation,'') orlocation, ifnull(schd.starttime,'') as procedurestart, ifnull(schd.surgeon,'') as surgeon, concat(ifnull(schd.patlast,'ERROR'),', ', ifnull(schd.PatFirst,'ERROR')) as donorname, ifnull(schd.mrn,'0000000') as mrn, concat(ifnull(schd.age,'-'),'/',ifnull(schd.race,'-'),'/',ifnull(schd.sex,'-')) donorars, ifnull(schd.procdetails,'') as procdetails FROM ORSCHED.ut_zck_ORSchDetail schd left join ORSCHED.ut_zck_ORSchds ors on schd.ORSchdid = ors.ORSchedid where 1=1 and ORSchdtid = :pxiid";
+                  $lookupRS = $conn->prepare($lookupSQL);
+                  foreach ( $ssdta['DATA'] as $k => $v ) { 
+                    $lookupRS->execute(array(':pxiid' => $v['pxiID']));
+                    if ( $lookupRS->rowCount() < 1 ) { 
+                      $chk = "NO DONOR INFORMATION FOUND MATCHING YOUR QUERY PARAMETERS ({$valCH})";
+                    } else {
+                      $chk = "<div id=warningbar>THIS PAGE CONTAINS HIPAA INFORMATION. DO NOT PRINT!</div>";
+                      $chk .= "<table border=0 id=donorDataDsp><tr><td colspan=9 id=headerLine>Donors Found: " . $lookupRS->rowCount() . "</td></tr><tr><th>Schedule<br>Date</th><th>Schedule<br>Institution</th><th>Procedure<br>Start-time</th><th>Donor Name</th><th>MRN</th><th>Donor Record<br>Age/Race/Sex</th><th>Surgeon</th><th>Procedure<br>Description</th></tr><tbody>";  
+                      $rowcnt = 0;  
+                      while ($r = $lookupRS->fetch(PDO::FETCH_ASSOC)) { 
+                        $chk .= "<tr class=pxidatarow id=\"datarow{$rowcnt}\" data-pxiid=\"{$r['pxiid']}\" data-selected=\"false\" onclick=\"rowselector(this.id);\">"
+                          . "<td valign=top>{$r['ordate']}</td>"
+                          . "<td valign=top>{$r['orlocation']}</td>"
+                          . "<td valign=top>{$r['procedurestart']}</td>"
+                          . "<td valign=top>{$r['donorname']}</td>"
+                          . "<td valign=top>{$r['mrn']}</td>"
+                          . "<td valign=top>{$r['donorars']}</td>"
+                          . "<td valign=top>{$r['surgeon']}</td>"
+                          . "<td valign=top>{$r['procdetails']}</td>"
+                          . "</tr>";
+                        $rowcnt++;
+                      }
+                      $chk .= "</tbody></table>";
+                    }  
+                  } 
+                } 
+              }
 
           } else {
             $sql = "SELECT schd.ORSchdtid as pxiid, schd.ORSchdid, ifnull(date_format(ors.ordate,'%m/%d/%Y'),'') as ordate, ifnull(ors.forlocation,'') orlocation, ifnull(schd.starttime,'') as procedurestart, ifnull(schd.surgeon,'') as surgeon, concat(ifnull(schd.patlast,'ERROR'),', ', ifnull(schd.PatFirst,'ERROR')) as donorname, ifnull(schd.mrn,'0000000') as mrn, concat(ifnull(schd.age,'-'),'/',ifnull(schd.race,'-'),'/',ifnull(schd.sex,'-')) donorars, ifnull(schd.procdetails,'') as procdetails FROM ORSCHED.ut_zck_ORSchDetail schd left join ORSCHED.ut_zck_ORSchds ors on schd.ORSchdid = ors.ORSchedid where 1=1";
@@ -2656,7 +2690,7 @@ THISBAR;
        <div class=fldHolder><input type=text id=fldORDte value="{$valOR}"></div>
    </div>
    <div class=elementHolder>
-       <div class=fldLabel>CHTN # (Archive ELOG Search)</div>
+       <div class=fldLabel>CHTN # (Biogroup # Search)</div>
        <div class=fldHolder><input type=text id=fldCHTNNbr value="{$valCH}"></div>
    </div>
     <div><button onclick="sendSrchRqst();" id=btnSrchDonor>Search</button></div>
