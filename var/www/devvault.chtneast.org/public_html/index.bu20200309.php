@@ -157,30 +157,30 @@ case 'POST':
   $authuser = $_SERVER['PHP_AUTH_USER'];
   $authpw = $_SERVER['PHP_AUTH_PW'];
   
-//  if ( $originalRequest == '/datadoers/stashconsent') {
- ////     $responseCode = 500; 
- ////     if (isset($_FILES['file'])) {
- ////        $msgArr[] =$_FILES['file']['name'];
- //        //$msgArr[] =$_FILES['file']['size'];
- //        //$msgArr[] =$_FILES['file']['tmp_name'];
- //        //$msgArr[] =$_FILES['file']['type'];
-////	 $msgArr[] =strtolower(end(explode('.',$_FILES['file']['name'])));
-////	 $msgArr[] = $temp_file = sys_get_temp_dir();
-////	 $img = file_get_contents( $_FILES['file']['tmp_name'] );
-////	 require( serverkeys . '/sspdo.zck');
+  if ( $originalRequest == '/datadoers/stashconsent') {
+ //     $responseCode = 500; 
+ //     if (isset($_FILES['file'])) {
+ //        $msgArr[] =$_FILES['file']['name'];
+         //$msgArr[] =$_FILES['file']['size'];
+         //$msgArr[] =$_FILES['file']['tmp_name'];
+         //$msgArr[] =$_FILES['file']['type'];
+//	 $msgArr[] =strtolower(end(explode('.',$_FILES['file']['name'])));
+//	 $msgArr[] = $temp_file = sys_get_temp_dir();
+//	 $img = file_get_contents( $_FILES['file']['tmp_name'] );
+//	 require( serverkeys . '/sspdo.zck');
 
-//	 $selector = generateRandomString(25);
-//	 move_uploaded_file($_FILES['file']['tmp_name'], "/var/www/cgi-bin/stash/{$selector}.pdf");
-////         $docInsSQL = "insert into ORSCHED.ut_informed_consents_documents(icid, selector, documentstring) values(0, :selector, :documentstring)";
-////	 $docInsRS = $conn->prepare($docInsSQL);
-////	 $f = base64_encode( $img ); 
-////         $docInsRS->execute(array(':selector' => $selector, ':documentstring' => $f )); 
-////	 $msgArr[] = $selector;	
-////	 $msgArr[] = $f; 
-////         $msgArr[] = $authuser;
-//      }
-// //     $data = json_encode(array("MESSAGE" => $msgArr,"ITEMSFOUND" => 0, "DATA" => ""));
-// // } else {  
+	 $selector = generateRandomString(25);
+	 move_uploaded_file($_FILES['file']['tmp_name'], "/var/www/cgi-bin/stash/{$selector}.pdf");
+//         $docInsSQL = "insert into ORSCHED.ut_informed_consents_documents(icid, selector, documentstring) values(0, :selector, :documentstring)";
+//	 $docInsRS = $conn->prepare($docInsSQL);
+//	 $f = base64_encode( $img ); 
+//         $docInsRS->execute(array(':selector' => $selector, ':documentstring' => $f )); 
+//	 $msgArr[] = $selector;	
+//	 $msgArr[] = $f; 
+//         $msgArr[] = $authuser;
+      }
+ //     $data = json_encode(array("MESSAGE" => $msgArr,"ITEMSFOUND" => 0, "DATA" => ""));
+ // } else {  
 
     if ((int)checkPostingUser($authuser,$authpw) === 200 ) {
       //require( genAppFiles . '/dvposter.php');
@@ -352,25 +352,20 @@ class datadoers {
           ( !array_key_exists('fileselector', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fileselector' DOES NOT EXIST.")) : ""; 
 
           if ( $errorInd === 0 ) {  
-//            require( serverkeys . '/sspdo.zck');
-//            $docSQL = "SELECT icd.documentstring FROM ORSCHED.ut_informed_consents ic left join ORSCHED.ut_informed_consents_documents icd on ic.icid = icd.icid where binary ic.selector = :selector";
-//            $docRS = $conn->prepare($docSQL);
-//            $docRS->execute(array( ':selector' => $locarr['fileselector']  ));
-//            if ( $docRS->rowCount() < 1 ) { 
-//              $msgArr[] = 'CONSENT DOCUMENT NOT FOUND';
-//            } else {
-//              $doc = $docRS->fetch(PDO::FETCH_ASSOC);
-//              $dta['pdfstring'] =  $doc['documentstring'];
-//              $dta['dialogid'] = generateRandomString();
-//              //$dta['dialogid'] = 'XXXDDDXXX';
-//            }
-           $pdfer = base64file("/var/www/cgi-bin/stash/{$locarr['fileselector']}.pdf","NOID",'',false, "");
-	   $dta['dialogid'] = generateRandomString();
-	   $dta['pdfstring'] = $pdfer;
-           $responseCode = 200;
-              		  
-
-	  }
+            require( serverkeys . '/sspdo.zck');
+            $docSQL = "SELECT icd.documentstring FROM ORSCHED.ut_informed_consents ic left join ORSCHED.ut_informed_consents_documents icd on ic.icid = icd.icid where binary ic.selector = :selector";
+            $docRS = $conn->prepare($docSQL);
+            $docRS->execute(array( ':selector' => $locarr['fileselector']  ));
+            if ( $docRS->rowCount() < 1 ) { 
+              $msgArr[] = 'CONSENT DOCUMENT NOT FOUND';
+            } else {
+              $doc = $docRS->fetch(PDO::FETCH_ASSOC);
+              $dta['pdfstring'] =  $doc['documentstring'];
+              $dta['dialogid'] = generateRandomString();
+              //$dta['dialogid'] = 'XXXDDDXXX';
+              $responseCode = 200;
+            }
+          }
       }  else { 
           $dta = "USER NOT ALLOWED";
       }  
@@ -384,88 +379,28 @@ class datadoers {
       $responseCode = 503;  
       $vuser = new vaultuser();
       $errorInd = 0;
+
+      $msgArr[] = $_FILES['file']['tmp_name'];
+      
       if ( (int)$vuser->responsecode === 200 ) { 	 
-        if ( trim($_FILES['file']['tmp_name']) !== "" ) { 
-        } else {  
+          if ( trim($_FILES['file']['tmp_name']) !== "" ) { 
+           //$msgArr[] =$_FILES['file']['type'];  //CHECK TO MAKE SURE IT IS A PDF
+           //$msgArr[] =strtolower(end(explode('.',$_FILES['file']['name'])));
+           $msgArr[] = $_FILES['file']['name'] ;
+           $selector = generateRandomString(25);
+           move_uploaded_file($_FILES['file']['tmp_name'], "/var/www/cgi-bin/stash/{$selector}.pdf");
+        } else { 
+            
             list( $errorInd, $msgArr[] ) = array( 1, "NO CONSENT PDF HAS BEEN SPECIFIED");
         }
-          	 
-	foreach ( $_POST as $key => $value ) {
-              if ( !cryptservice($key,'d') ) { 
-		$locarr[ $key ] = $value; 
-              } else { 
-		$locarr[ cryptservice($key,'d') ] = chtndecrypt( $value );
-              }
-        }
-        ( !array_key_exists('fldDonorFName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorFName' DOES NOT EXIST.")) : ""; 
-        ( !array_key_exists('fldDonorLName', $locarr) ) ? (list( $errorInd, $msgArr[] ) = array(1 , "FATAL ERROR:  ARRAY KEY 'fldDonorLName' DOES NOT EXIST.")) : ""; 
+          
 
-        if ( $errorInd === 0 ) {
-          ( trim($locarr['fldDonorFName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S FIRST NAME MUST BE SPECIFIED.")) : "";
-	  ( trim($locarr['fldDonorLName']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S LAST NAME MUST BE SPECIFIED.")) : "";
-          ( trim($locarr['fldDnrAge']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S AGE MUST BE SPECIFIED.")) : "";
-	  ( trim($locarr['fldDnrRace']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S RACE MUST BE SPECIFIED.")) : "";
-          ( trim($locarr['fldDnrSex']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE DONOR'S SEX MUST BE SPECIFIED.")) : "";
-          ( trim($locarr['consentdoc']) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"THE CONSENT DOCUMENT MUST BE SPECIFIED.")) : "";
+//        foreach ( $_POST as $key => $value ) {
+//          $msgArr[] = $key . " ... " . $value;
+//        }
 
-	  if ( trim($locarr['fldProcDte']) !== "" ) {
-             ( !ssValidateDate( trim($locarr['fldProcDte']),'m/d/Y')) ? (list( $errorInd, $msgArr[] ) = array(1,"THE ANTICIPATED PROCEDURE DATE MUST BE A VALID DATE VALUE IN THE FORMAT mm/dd/YYYY.")) : "";
-	  }
 
-	  foreach ( $locarr as $k => $v ) { 
-	    if ( substr($k,0,3) === 'ans' ) {
-	      $aPart = explode( "_", $k);
-              switch ( $aPart[2] ) { 
-                case 'yn':
-		  ( trim($v) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"ALL YES/NO CONSENT ANSWERS REQUIRE A VALUE.")) : "";		
-                  break;
-		case 'txd':
-		  //CHECK DATE
-                  ( trim($v) === "" || !ssValidateDate($v,'m/d/Y') ) ? (list( $errorInd, $msgArr[] ) = array(1,"ALL DATE CONSENT ANSWERS REQUIRE A VALID DATE VALUE IN THE FORMAT mm/dd/YYYY.")) : "";
-		case 'txt':	
-		  ( trim($v) === "" ) ? (list( $errorInd, $msgArr[] ) = array(1,"ALL TEXT CONSENT ANSWERS REQUIRE A VALUE.")) : "";		
-                  break;
-	      }
-	    }
-	  }
-
-          if ( $errorInd === 0 ) {
-           $selector = generateRandomString(25);
-	   require( serverkeys . '/sspdo.zck');
-	   $anticProcDate = ( trim($locarr['fldProcDte']) !== "" ) ? $locarr['fldProcDte'] : "01/01/1900";
-           $insSQL = "insert into ORSCHED.ut_informed_consents ( selector, donorfname, donorlname, mrn, age, ageuom, race, sex, rqstrfname, rqstrlname, anticprocdate, consentdoctype, uploadby, uploadon, dspind) values( :selector, :donorfname, :donorlname, :mrn, :age, :ageuom, :race, :sex, :rqstrfname, :rqstrlname, :anticprocdate, :consentdoctype, :uploadby, now(), 1)";
-           $insRS = $conn->prepare( $insSQL );
-           $insRS->execute(array(':selector' =>  $selector, ':donorfname' => trim($locarr['fldDonorFName']), ':donorlname' =>  trim($locarr['fldDonorLName']), ':mrn' => trim($locarr['fldDonorMRN']),':age' =>  trim($locarr['fldDnrAge']), ':ageuom' =>  trim($locarr['fldDnrAgeUOM']) , ':race' =>  trim($locarr['fldDnrRace']), ':sex' =>  trim($locarr['fldDnrSex']), ':rqstrfname' =>  trim($locarr['fldIFName']), ':rqstrlname' => trim($locarr['fldILName']), ':anticprocdate' => date('Y-m-d',strtotime( $anticProcDate )), ':consentdoctype' =>  trim($locarr['consentdoc']), ':uploadby' => $vuser->userid));
-
-           $icid = $conn->lastInsertId(); 
-//fldDonorFName ... - fldDonorLName ... - fldDonorMRN ... - fldDnrAge ... - fldDnrAgeUOM ... - fldDnrRace ... - fldDnrSex ... - fldIFName ... - fldILName ... - fldProcDte ... - consentdoc .. CHTNEastern Consent - ansQ1_1_yn .. - ansQ1_2_yn .. - ansQ1_3_yn .. - ansQ1_35_txt .. - ansQ1_36_yn .. - ansQ1_37_txt .. - ansQ1_4_yn .. - ansQ1_5_yn .. - ansQ1_6_yn .. - ansQ1_8_txt .. - ansQ1_9_txd .. 
-
-	   $insAnsSQL = "insert into ORSCHED.ut_informed_consents_answers ( icid, qid, qtxt, answertxt) value ( :icid, :qid, :qtxt, :answertxt )"; 
-	   $insAnsRS = $conn->prepare( $insAnsSQL ); 
-
-	   foreach ( $locarr as $k => $v ) { 
-	     if ( substr($k,0,3) === 'ans' ) {
-	       $aPart = explode( "_", $k);
-	       $qid = preg_replace('/^ans/','',$aPart[0]) . "." . $aPart[1];
-	       $qDta = json_decode(callrestapi("GET", dataTreeSS . "/vault-consent-doc-questions-text/{$qid}", serverIdent, serverpw),true);                      
-	       //{"MESSAGE":"q1.36","ITEMSFOUND":1,"DATA":[{"menuvalue":"Q1.36_yn","dspvalue":"Allow to collect, store and distribute Other Types?","additionalInformation":"YN"}]} 
-	       if ( (int)$qDta['ITEMSFOUND'] > 0 ) {
-  	         $qtxt = $qDta['DATA'][0]['dspvalue'];
-	       } else { 
-		 $qtxt = "NO QUESTION";
-	       }
-	       $insAnsRS->execute(array(':icid' => $icid, ':qid' => $qid, ':qtxt' => $qtxt, ':answertxt' => $v ));
-	     }
-	   }
-
-	   move_uploaded_file($_FILES['file']['tmp_name'], "/var/www/cgi-bin/stash/{$selector}.pdf");
-           $docInsSQL = "insert into ORSCHED.ut_informed_consents_documents(icid,selector,documentstring) values(:icid,:selector,:documentstring)";
-           $docInsRS = $conn->prepare($docInsSQL); 
-           $docInsRS->execute(array(':icid' => $icid, ':selector' => $selector, ':documentstring' => $locarr['consentdoc'] )); 
-
-            $responseCode = 200;
-	  }
-        }
+        
       }
       $msg = $msgArr;
       $rows['statusCode'] = $responseCode; 
@@ -2171,18 +2106,11 @@ function validateConsentForm() {
   oReq.setRequestHeader("Authorization","Basic " + btoa(regu+":"+regc));
   oReq.onload = function(oEvent) {
   if ( parseInt(oReq.status) === 200) {
-   alert('Informed Consent has been uploaded.');
-   location.reload(true);
-  } else {
-      var r = JSON.parse( oReq.responseText );
-      var msg = r['MESSAGE'];
-      var dspMsg = "";
-      msg.forEach(function(element) {
-        dspMsg += "\\n - "+element;
-      });
-      alert(dspMsg);
-  }
-  byId('standardModalBacker').style.display = 'none';
+
+    } else {
+      alert('ERROR EXISTS');
+    }
+    byId('standardModalBacker').style.display = 'none';
   };
   oReq.send(oData);
 }
@@ -2275,7 +2203,7 @@ function displayConsentDocument( rtnData ) {
         d.style.left = '50%';
         d.style.marginTop = '-35vh';
         d.style.top = '50%';
-        d.innerHTML = '<div class=closeDialogBar style=\"height: 2vh;\" onclick="closeThisDialog(\''+r['DATA']['dialogid']+'\');">&times; close</div><object data="data:application/pdf;base64,' + r['DATA']['pdfstring'] + '" style="width: 100%; height: 67vh;">';
+        d.innerHTML = '<div class=closeDialogBar style=\"height: 2vh;\" onclick="closeThisDialog(\''+r['DATA']['dialogid']+'\');">&times; close</div><object data="' + r['DATA']['pdfstring'] + '" style="width: 100%; height: 67vh;">';
         document.body.appendChild(d);
         byId(r['DATA']['dialogid']).style.display = 'block';  
         byId('standardModalBacker').style.display = 'block';
@@ -2901,7 +2829,6 @@ PGCONTENT;
         }
       }
 
-  //<div><input type="file" name="file" id="file" class="inputfile" accept=".pdf" onchange="btoathisfile('btoIConsent', this.files[0]);" /><TEXTAREA id="btoIConsent" style="display: none;"></textarea></div>
     $uploadside = <<<UPLOADSIDE
 <div id=cwTitle>Upload Consent Form</div>
 <div id=cwDirections>Fill out the form below.  This will add the donor to the 'Consent Watch List' unless you list CHTN Biogroup Numbers.  If you list CHTN Numbers, those numbers will be marked 'Informed Consent YES' in the ScienceServer Database.  </div>
@@ -2910,7 +2837,7 @@ PGCONTENT;
 <div class=cwSectionHeader>Upload File *</div>
 <div>
   <div>Choose a File</div>
-  <div><input type="file" name="file" id="file" class="inputfile" accept=".pdf" /><TEXTAREA id="btoIConsent" style="display: none;"></textarea></div>
+  <div><input type="file" name="file" id="file" class="inputfile" accept=".pdf" onchange="btoathisfile('btoIConsent', this.files[0]);" /><TEXTAREA id="btoIConsent" style="display: block;"></textarea></div>
 </div>
 <div align=right style="width: 30vw;">
 <table><tr><td> <button id=btnConsentSave >Save</button> </td><td> <button id=btnConsentCancel onclick="consentcancel();">Cancel</button> </td></tr></table>
